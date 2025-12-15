@@ -1,0 +1,168 @@
+// This file is part of Moodle - http://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+
+/**
+ * Sidebar navigation component for RTB Dashboard.
+ *
+ * @module     local_rtbdashboard/components/Sidebar
+ * @copyright  2025 Rwanda TVET Board
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
+
+import { getMenuItems } from '../config/menu';
+import type { PageId } from '../types';
+
+interface SidebarProps {
+    activePage: PageId;
+}
+
+// Menu items matching the image design
+const menuItems = [
+    { id: 'home', name: 'Dashboard', icon: 'dashboard', url: '/local/rtbdashboard/index.php' },
+    { id: 'courses', name: 'Courses', icon: 'courses', url: '#' },
+    { id: 'presence', name: 'Presence', icon: 'presence', url: '#' },
+    { id: 'communication', name: 'Communication', icon: 'communication', url: '#' },
+    { id: 'event', name: 'Event', icon: 'event', url: '#' },
+    { id: 'pedagogy', name: 'Pedagogy', icon: 'pedagogy', url: '#' },
+    { id: 'message', name: 'Message', icon: 'message', url: '#' },
+    { id: 'completion', name: 'Completion', icon: 'completion', url: '/local/rtbdashboard/completion.php' },
+    { id: 'settings', name: 'Settings', icon: 'settings', url: '#' },
+];
+
+// Icon components
+const icons: Record<string, JSX.Element> = {
+    dashboard: (
+        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M4 4h4v4H4V4zm6 0h4v4h-4V4zm6 0h4v4h-4V4zM4 10h4v4H4v-4zm6 0h4v4h-4v-4zm6 0h4v4h-4v-4zM4 16h4v4H4v-4zm6 0h4v4h-4v-4zm6 0h4v4h-4v-4z"/>
+        </svg>
+    ),
+    courses: (
+        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9H9V9h10v2zm-4 4H9v-2h6v2zm4-8H9V5h10v2z"/>
+        </svg>
+    ),
+    presence: (
+        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V9h14v10zM5 7V5h14v2H5zm2 4h10v2H7v-2zm0 4h7v2H7v-2z"/>
+        </svg>
+    ),
+    communication: (
+        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
+        </svg>
+    ),
+    event: (
+        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z"/>
+        </svg>
+    ),
+    payment: (
+        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/>
+        </svg>
+    ),
+    pedagogy: (
+        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 3L1 9l4 2.18v6L12 21l7-3.82v-6l2-1.09V17h2V9L12 3zm6.82 6L12 12.72 5.18 9 12 5.28 18.82 9zM17 15.99l-5 2.73-5-2.73v-3.72L12 15l5-2.73v3.72z"/>
+        </svg>
+    ),
+    message: (
+        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
+        </svg>
+    ),
+    completion: (
+        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/>
+        </svg>
+    ),
+    settings: (
+        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+        </svg>
+    ),
+    logout: (
+        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5-5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/>
+        </svg>
+    ),
+};
+
+// Logo icon
+const LogoIcon = () => (
+    <svg className="w-8 h-8" viewBox="0 0 40 40" fill="none">
+        <rect x="4" y="20" width="16" height="16" fill="#22d3ee" transform="rotate(-45 12 28)"/>
+        <rect x="20" y="4" width="16" height="16" fill="#fbbf24" transform="rotate(-45 28 12)"/>
+    </svg>
+);
+
+export default function Sidebar({ activePage }: SidebarProps) {
+    return (
+        <aside className="w-72 bg-gray-50 border-r border-gray-200 py-6 pr-4 overflow-y-auto min-h-screen flex flex-col">
+            {/* Logo */}
+            <div className="pl-3 pb-6 flex items-center gap-3">
+                <LogoIcon />
+                <span className="text-lg font-bold text-gray-800">RTB</span>
+            </div>
+
+            {/* Main Menu Section */}
+            <div className="mb-8 flex-1">
+                <h6 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 pl-3">
+                    Menu
+                </h6>
+                <ul className="space-y-1 m-0 p-0 list-none">
+                    {menuItems.map((item) => {
+                        const isActive = item.id === activePage;
+                        return (
+                            <li key={item.id}>
+                                <a
+                                    href={item.url}
+                                    className={`flex items-center px-3 py-2 rounded text-sm transition-colors no-underline ${
+                                        isActive
+                                            ? 'bg-rtb-blue text-white'
+                                            : 'text-gray-700 hover:bg-gray-200'
+                                    }`}
+                                >
+                                    <span className={`w-5 mr-3 ${isActive ? 'text-white' : 'text-gray-500'}`}>
+                                        {icons[item.icon]}
+                                    </span>
+                                    <span>{item.name}</span>
+                                </a>
+                            </li>
+                        );
+                    })}
+                </ul>
+            </div>
+
+            {/* Account Section */}
+            <div className="mt-auto">
+                <h6 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 pl-3">
+                    Account
+                </h6>
+                <ul className="space-y-1 m-0 p-0 list-none">
+                    <li>
+                        <a
+                            href="/login/logout.php"
+                            className="flex items-center px-3 py-2 rounded text-sm text-gray-700 hover:bg-gray-200 no-underline transition-colors"
+                        >
+                            <span className="w-5 mr-3 text-gray-500">{icons.logout}</span>
+                            <span>Log out</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </aside>
+    );
+}
