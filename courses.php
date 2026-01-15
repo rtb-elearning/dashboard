@@ -15,34 +15,40 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Elby Dashboard admin page.
+ * Elby Dashboard courses report page.
  *
  * @package    local_elby_dashboard
  * @copyright  2025 Rwanda TVET Board
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-require_once('../../../config.php');
+require_once('../../config.php');
 require_once($CFG->dirroot . '/local/elby_dashboard/lib.php');
 
-// Require login and admin capability.
+use local_elby_dashboard\course_report_helper;
+
+// Get optional course ID parameter.
+$courseid = optional_param('courseid', 0, PARAM_INT);
+
+// Require login.
 require_login();
 
 // Set up the page context.
 $context = context_system::instance();
 $PAGE->set_context($context);
 
-// Check for admin capability - only site admins can access.
-require_capability('moodle/site:config', $context);
+// Check capability.
+require_capability('local/elby_dashboard:viewreports', $context);
 
-$PAGE->set_url(new moodle_url('/local/elby_dashboard/admin/index.php'));
+$PAGE->set_url(new moodle_url('/local/elby_dashboard/courses.php', ['courseid' => $courseid]));
 $PAGE->set_pagelayout('standard');
-$PAGE->set_title(get_string('admin_page_title', 'local_elby_dashboard'));
-$PAGE->set_heading(get_string('admin_page_heading', 'local_elby_dashboard'));
+$PAGE->set_title(get_string('page_title', 'local_elby_dashboard') . ' - ' . get_string('courses_report', 'local_elby_dashboard'));
+$PAGE->set_heading(get_string('page_heading', 'local_elby_dashboard'));
 
 // Add body classes for plugin-specific page styling.
 $PAGE->add_body_class('local-elby-dashboard-plugin');
-$PAGE->add_body_class('local-elby-dashboard-admin-page');
+$PAGE->add_body_class('local-elby-dashboard-page');
+$PAGE->add_body_class('local-elby-dashboard-courses');
 
 // Load custom CSS.
 $PAGE->requires->css('/local/elby_dashboard/styles.css');
@@ -51,8 +57,8 @@ $PAGE->requires->css('/local/elby_dashboard/styles.css');
 $PAGE->requires->js_call_amd('local_elby_dashboard/dashboard', 'init');
 
 // Add breadcrumb navigation.
-$PAGE->navbar->add(get_string('pluginname', 'local_elby_dashboard'));
-$PAGE->navbar->add(get_string('nav_admin', 'local_elby_dashboard'));
+$PAGE->navbar->add(get_string('pluginname', 'local_elby_dashboard'), new moodle_url('/local/elby_dashboard/index.php'));
+$PAGE->navbar->add(get_string('courses_report', 'local_elby_dashboard'));
 
 // Get sidenav configuration.
 $sidenavtitle = get_config('local_elby_dashboard', 'sidenavtitle') ?: 'Dashboard';
@@ -119,28 +125,35 @@ $userdata = [
     'email' => $USER->email,
     'avatar' => $OUTPUT->get_generated_image_for_id($USER->id),
     'roles' => $userroles,
-    'isAdmin' => true,
 ];
 
-// Prepare comprehensive stats data for admin dashboard.
+// Get list of courses.
+$coursesList = course_report_helper::get_courses_list();
+
+// Get course report if a course is selected.
+$courseReport = null;
+if ($courseid > 0) {
+    try {
+        $courseReport = course_report_helper::get_course_report($courseid);
+    } catch (Exception $e) {
+        // Handle error gracefully.
+        debugging('Error fetching course report: ' . $e->getMessage(), DEBUG_DEVELOPER);
+    }
+}
+
+// Prepare stats data.
 $statsdata = [
-    'totalCourses' => $DB->count_records('course') - 1,
+    'totalCourses' => count($coursesList),
     'totalUsers' => $DB->count_records('user', ['deleted' => 0]) - 1,
     'totalEnrollments' => $DB->count_records('user_enrolments'),
     'totalActivities' => $DB->count_records('course_modules'),
-    'activeUsers' => $DB->count_records_select('user', 'deleted = 0 AND lastaccess > ?', [time() - 86400 * 30]),
-    'totalTeachers' => $DB->count_records_sql(
-        "SELECT COUNT(DISTINCT ra.userid)
-         FROM {role_assignments} ra
-         JOIN {role} r ON r.id = ra.roleid
-         WHERE r.shortname IN ('teacher', 'editingteacher')"
-    ),
-    'totalStudents' => $DB->count_records_sql(
-        "SELECT COUNT(DISTINCT ra.userid)
-         FROM {role_assignments} ra
-         JOIN {role} r ON r.id = ra.roleid
-         WHERE r.shortname = 'student'"
-    ),
+];
+
+// Prepare courses report data for frontend.
+$coursesReportData = [
+    'courses_list' => $coursesList,
+    'selected_courseid' => $courseid,
+    'course_report' => $courseReport,
 ];
 
 // Prepare data for template.
@@ -149,7 +162,8 @@ $templatecontext = [
     'stats_data_json' => json_encode($statsdata, JSON_HEX_QUOT | JSON_HEX_APOS),
     'sidenav_config_json' => json_encode($sidenavconfig, JSON_HEX_QUOT | JSON_HEX_APOS),
     'theme_config_json' => json_encode($themeconfig, JSON_HEX_QUOT | JSON_HEX_APOS),
-    'active_page' => 'home',
+    'courses_report_json' => json_encode($coursesReportData, JSON_HEX_QUOT | JSON_HEX_APOS),
+    'active_page' => 'courses',
 ];
 
 // Output the page.

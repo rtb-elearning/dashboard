@@ -17,12 +17,12 @@
 /**
  * External API for course completion statistics.
  *
- * @package    local_rtbdashboard
+ * @package    local_elby_dashboard
  * @copyright  2025 Rwanda TVET Board
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-namespace local_rtbdashboard\external;
+namespace local_elby_dashboard\external;
 
 defined('MOODLE_INTERNAL') || die();
 
@@ -77,7 +77,7 @@ class completion extends external_api {
         self::validate_context($context);
 
         // Check capability.
-        require_capability('local/rtbdashboard:view', $context);
+        require_capability('local/elby_dashboard:view', $context);
 
         // Get total enrolled users.
         $totalparticipants = count_enrolled_users($context);
@@ -249,7 +249,7 @@ class completion extends external_api {
         self::validate_context($context);
 
         // Check capability at category level.
-        require_capability('local/rtbdashboard:view', $context);
+        require_capability('local/elby_dashboard:view', $context);
 
         // Get all courses in this category (including subcategories).
         $courses = $category->get_courses(['recursive' => true]);
@@ -270,7 +270,7 @@ class completion extends external_api {
             $coursecontext = context_course::instance($course->id);
 
             // Check if user can view this course.
-            if (!has_capability('local/rtbdashboard:view', $coursecontext)) {
+            if (!has_capability('local/elby_dashboard:view', $coursecontext)) {
                 continue;
             }
 

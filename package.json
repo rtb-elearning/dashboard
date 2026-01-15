@@ -1,5 +1,5 @@
 {
-  "name": "rtbdashboard",
+  "name": "elby-dashboard",
   "version": "1.0.0",
   "main": "index.js",
   "type": "module",
@@ -10,7 +10,7 @@
   },
   "author": "Rwanda TVET Board",
   "license": "GPL-3.0",
-  "description": "RTB Dashboard Moodle Plugin",
+  "description": "Elby Dashboard Moodle Plugin",
   "dependencies": {
     "@preact/signals": "^2.3.2",
     "preact": "^10.27.2"

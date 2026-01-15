@@ -14,18 +14,19 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Dashboard component for RTB Dashboard.
+ * Dashboard component for Elby Dashboard.
  *
- * @module     local_rtbdashboard/components/Dashboard
+ * @module     local_elby_dashboard/components/Dashboard
  * @copyright  2025 Rwanda TVET Board
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-import type { UserData, StatsData } from '../types';
+import type { UserData, StatsData, ThemeConfig } from '../types';
 
 interface DashboardProps {
     user: UserData;
     stats: StatsData;
+    themeConfig: ThemeConfig;
 }
 
 // Sample attendance data (requires mod_attendance for real data)
@@ -49,9 +50,12 @@ const enrollmentData = [
 ];
 
 // Stat Card Component
-function StatCard({ icon, value, label, bgColor }: { icon: JSX.Element; value: string; label: string; bgColor: string }) {
+function StatCard({ icon, value, label, bgColor, customBgColor }: { icon: JSX.Element; value: string; label: string; bgColor: string; customBgColor?: string }) {
     return (
-        <div className={`${bgColor} rounded-xl p-4 flex items-center gap-4`}>
+        <div
+            className={`${bgColor} rounded-xl p-4 flex items-center gap-4`}
+            style={customBgColor ? { backgroundColor: customBgColor } : undefined}
+        >
             <div className="w-12 h-12 rounded-full bg-white/30 flex items-center justify-center">
                 {icon}
             </div>
@@ -241,7 +245,7 @@ const CoursesIcon = () => (
     </svg>
 );
 
-export default function Dashboard({ user, stats }: DashboardProps) {
+export default function Dashboard({ user, stats, themeConfig }: DashboardProps) {
     return (
         <div className="p-6 bg-gray-50 min-h-screen">
             {/* Stats Cards */}
@@ -250,25 +254,29 @@ export default function Dashboard({ user, stats }: DashboardProps) {
                     icon={<StudentsIcon />}
                     value={stats.totalStudents.toLocaleString()}
                     label="Number of Students"
-                    bgColor="bg-cyan-100"
+                    bgColor=""
+                    customBgColor={themeConfig.statCard1Color}
                 />
                 <StatCard
                     icon={<TeacherIcon />}
                     value={stats.totalTeachers.toLocaleString()}
                     label="Number of Teachers"
-                    bgColor="bg-amber-100"
+                    bgColor=""
+                    customBgColor={themeConfig.statCard2Color}
                 />
                 <StatCard
                     icon={<EmployeeIcon />}
                     value={stats.totalUsers.toLocaleString()}
                     label="Total Users"
-                    bgColor="bg-purple-100"
+                    bgColor=""
+                    customBgColor={themeConfig.statCard3Color}
                 />
                 <StatCard
                     icon={<CoursesIcon />}
                     value={stats.totalCourses.toLocaleString()}
                     label="Total Courses"
-                    bgColor="bg-green-100"
+                    bgColor=""
+                    customBgColor={themeConfig.statCard4Color}
                 />
             </div>
 

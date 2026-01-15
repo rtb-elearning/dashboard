@@ -1,7 +1,7 @@
 /**
- * RTB Dashboard plugin styles.
+ * Elby Dashboard plugin styles.
  *
- * @package    local_rtbdashboard
+ * @package    local_elby_dashboard
  * @copyright  2025 Rwanda TVET Board
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
@@ -14,32 +14,32 @@
  * Dashboard pages - Remove Moodle default header and adjust layout
  */
 
-body.local-rtbdashboard-page *{
+body.local-elby-dashboard-page *{
 	margin: 0;
 	padding: 0;
 	box-sizing: border-box;
 }
-body.local-rtbdashboard-page .main-inner {
+body.local-elby-dashboard-page .main-inner {
     max-width: 100% !important;
     margin-top: 0 !important;
     padding: 0 !important;
 }
-body.local-rtbdashboard-page div[role=main]{
+body.local-elby-dashboard-page div[role=main]{
 	padding-right: 0 !important;
 	padding-left: 0 !important;
 }
 
-body.local-rtbdashboard-page #page-header * {
+body.local-elby-dashboard-page #page-header * {
     display: none !important;
 }
 
-body.local-rtbdashboard-page #page-header {
+body.local-elby-dashboard-page #page-header {
     margin: 0;
     padding: 0 !important;
     margin-top: 10px;
 }
 
-body.local-rtbdashboard-page #page-footer {
+body.local-elby-dashboard-page #page-footer {
     margin-top: 0 !important;
 }
 
@@ -47,9 +47,9 @@ body.local-rtbdashboard-page #page-footer {
    PLUGIN-SCOPED STYLES
    ============================================ */
 
-/* RTB Dashboard - Base Styles */
+/* Elby Dashboard - Base Styles */
 
-.local-rtbdashboard {
+.local-elby-dashboard {
     min-height: 400px;
 }
 

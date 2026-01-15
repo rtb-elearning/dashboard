@@ -1,6 +1,9 @@
-<main id="rtb-dashboard-root" class="local-rtbdashboard"
+<main id="elby-dashboard-root" class="local-elby-dashboard"
       data-user='{{{user_data_json}}}'
       data-stats='{{{stats_data_json}}}'
+      data-sidenav='{{{sidenav_config_json}}}'
+      data-theme='{{{theme_config_json}}}'
+      {{#courses_report_json}}data-courses-report='{{{courses_report_json}}}'{{/courses_report_json}}
       data-page='{{active_page}}'>
 	<div class="loading-skeleton">
 		<!-- Main Content Skeleton -->

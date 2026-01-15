@@ -14,31 +14,25 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Sidebar navigation component for RTB Dashboard.
+ * Sidebar navigation component for Elby Dashboard.
  *
- * @module     local_rtbdashboard/components/Sidebar
+ * @module     local_elby_dashboard/components/Sidebar
  * @copyright  2025 Rwanda TVET Board
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-import { getMenuItems } from '../config/menu';
-import type { PageId } from '../types';
+import type { PageId, SidenavConfig, ThemeConfig } from '../types';
 
 interface SidebarProps {
     activePage: PageId;
+    sidenavConfig: SidenavConfig;
+    themeConfig: ThemeConfig;
 }
 
-// Menu items matching the image design
+// Menu items
 const menuItems = [
-    { id: 'home', name: 'Dashboard', icon: 'dashboard', url: '/local/rtbdashboard/index.php' },
-    { id: 'courses', name: 'Courses', icon: 'courses', url: '#' },
-    { id: 'presence', name: 'Presence', icon: 'presence', url: '#' },
-    { id: 'communication', name: 'Communication', icon: 'communication', url: '#' },
-    { id: 'event', name: 'Event', icon: 'event', url: '#' },
-    { id: 'pedagogy', name: 'Pedagogy', icon: 'pedagogy', url: '#' },
-    { id: 'message', name: 'Message', icon: 'message', url: '#' },
-    { id: 'completion', name: 'Completion', icon: 'completion', url: '/local/rtbdashboard/completion.php' },
-    { id: 'settings', name: 'Settings', icon: 'settings', url: '#' },
+    { id: 'home', name: 'Dashboard', icon: 'dashboard', url: '/local/elby_dashboard/index.php' },
+    { id: 'courses', name: 'Courses', icon: 'courses', url: '/local/elby_dashboard/courses.php' },
 ];
 
 // Icon components
@@ -100,21 +94,37 @@ const icons: Record<string, JSX.Element> = {
     ),
 };
 
-// Logo icon
-const LogoIcon = () => (
+// Default logo icon (fallback when no logo is uploaded)
+const DefaultLogoIcon = () => (
     <svg className="w-8 h-8" viewBox="0 0 40 40" fill="none">
         <rect x="4" y="20" width="16" height="16" fill="#22d3ee" transform="rotate(-45 12 28)"/>
         <rect x="20" y="4" width="16" height="16" fill="#fbbf24" transform="rotate(-45 28 12)"/>
     </svg>
 );
 
-export default function Sidebar({ activePage }: SidebarProps) {
+export default function Sidebar({ activePage, sidenavConfig, themeConfig }: SidebarProps) {
+    // Filter menu items based on visibility settings
+    const visibleMenuItems = menuItems.filter((item) => {
+        // Dashboard (home) is always visible
+        if (item.id === 'home') return true;
+        // Check visibility from theme config
+        return themeConfig.menuVisibility[item.id] !== false;
+    });
+
     return (
         <aside className="w-72 bg-gray-50 border-r border-gray-200 py-6 pr-4 overflow-y-auto min-h-screen flex flex-col">
             {/* Logo */}
             <div className="pl-3 pb-6 flex items-center gap-3">
-                <LogoIcon />
-                <span className="text-lg font-bold text-gray-800">RTB</span>
+                {sidenavConfig.logoUrl ? (
+                    <img
+                        src={sidenavConfig.logoUrl}
+                        alt={sidenavConfig.title}
+                        className="w-8 h-8 object-contain"
+                    />
+                ) : (
+                    <DefaultLogoIcon />
+                )}
+                <span className="text-lg font-bold text-gray-800">{sidenavConfig.title}</span>
             </div>
 
             {/* Main Menu Section */}
@@ -123,7 +133,7 @@ export default function Sidebar({ activePage }: SidebarProps) {
                     Menu
                 </h6>
                 <ul className="space-y-1 m-0 p-0 list-none">
-                    {menuItems.map((item) => {
+                    {visibleMenuItems.map((item) => {
                         const isActive = item.id === activePage;
                         return (
                             <li key={item.id}>
@@ -131,9 +141,10 @@ export default function Sidebar({ activePage }: SidebarProps) {
                                     href={item.url}
                                     className={`flex items-center px-3 py-2 rounded text-sm transition-colors no-underline ${
                                         isActive
-                                            ? 'bg-rtb-blue text-white'
+                                            ? 'text-white'
                                             : 'text-gray-700 hover:bg-gray-200'
                                     }`}
+                                    style={isActive ? { backgroundColor: themeConfig.sidenavAccentColor } : undefined}
                                 >
                                     <span className={`w-5 mr-3 ${isActive ? 'text-white' : 'text-gray-500'}`}>
                                         {icons[item.icon]}

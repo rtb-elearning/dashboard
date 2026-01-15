@@ -14,9 +14,9 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * TypeScript type definitions for RTB Dashboard.
+ * TypeScript type definitions for Elby Dashboard.
  *
- * @module     local_rtbdashboard/types
+ * @module     local_elby_dashboard/types
  * @copyright  2025 Rwanda TVET Board
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
@@ -59,4 +59,70 @@ export interface MenuItem {
     icon: string;
 }
 
-export type PageId = 'home' | 'completion';
+export interface SidenavConfig {
+    title: string;
+    logoUrl: string | null;
+}
+
+export interface ThemeConfig {
+    // Colors
+    sidenavAccentColor: string;
+    statCard1Color: string;
+    statCard2Color: string;
+    statCard3Color: string;
+    statCard4Color: string;
+    chartPrimaryColor: string;
+    chartSecondaryColor: string;
+    // Header options
+    showSearchBar: boolean;
+    showNotifications: boolean;
+    showUserProfile: boolean;
+    // Menu visibility
+    menuVisibility: Record<string, boolean>;
+}
+
+export type PageId = 'home' | 'completion' | 'courses';
+
+// Course report types
+export interface CourseListItem {
+    id: number;
+    shortname: string;
+    fullname: string;
+    enrolled_count: number;
+}
+
+export interface SectionStat {
+    section_number: number;
+    section_name: string;
+    completion_rate: number;
+    average_grade?: number;
+}
+
+export interface SchoolReport {
+    school_code: string;
+    school_name: string;
+    student_count: number;
+    sections: SectionStat[];
+}
+
+export interface OverviewSection {
+    section_number: number;
+    section_name: string;
+    completion_rate: number;
+}
+
+export interface CourseReport {
+    courseid: number;
+    course_name: string;
+    course_shortname?: string;
+    total_enrolled: number;
+    total_schools: number;
+    overview_sections: OverviewSection[];
+    schools: SchoolReport[];
+}
+
+export interface CoursesReportData {
+    courses_list: CourseListItem[];
+    selected_courseid: number;
+    course_report: CourseReport | null;
+}

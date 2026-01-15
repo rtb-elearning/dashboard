@@ -14,9 +14,9 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Menu configuration for RTB Dashboard.
+ * Menu configuration for Elby Dashboard.
  *
- * @module     local_rtbdashboard/config/menu
+ * @module     local_elby_dashboard/config/menu
  * @copyright  2025 Rwanda TVET Board
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
@@ -31,13 +31,13 @@ export function getMenuItems(): MenuItem[] {
         {
             id: 'home',
             name: 'Home',
-            url: '/local/rtbdashboard/index.php',
+            url: '/local/elby_dashboard/index.php',
             icon: 'fa fa-home',
         },
         {
             id: 'completion',
             name: 'Completion Report',
-            url: '/local/rtbdashboard/completion.php',
+            url: '/local/elby_dashboard/completion.php',
             icon: 'fa fa-check-circle',
         },
     ];

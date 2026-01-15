@@ -15,9 +15,9 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Capability definitions for the RTB Dashboard plugin.
+ * Capability definitions for the Elby Dashboard plugin.
  *
- * @package    local_rtbdashboard
+ * @package    local_elby_dashboard
  * @copyright  2025 Rwanda TVET Board
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
@@ -27,7 +27,7 @@ defined('MOODLE_INTERNAL') || die();
 $capabilities = [
 
     // View dashboard.
-    'local/rtbdashboard:view' => [
+    'local/elby_dashboard:view' => [
         'captype' => 'read',
         'contextlevel' => CONTEXT_SYSTEM,
         'archetypes' => [
@@ -39,7 +39,7 @@ $capabilities = [
     ],
 
     // View detailed reports.
-    'local/rtbdashboard:viewreports' => [
+    'local/elby_dashboard:viewreports' => [
         'captype' => 'read',
         'contextlevel' => CONTEXT_SYSTEM,
         'archetypes' => [
@@ -50,7 +50,7 @@ $capabilities = [
     ],
 
     // Manage dashboard settings.
-    'local/rtbdashboard:manage' => [
+    'local/elby_dashboard:manage' => [
         'riskbitmask' => RISK_CONFIG,
         'captype' => 'write',
         'contextlevel' => CONTEXT_SYSTEM,
