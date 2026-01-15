@@ -55,10 +55,13 @@ class course_report_helper {
 
         // Group by school.
         $studentsBySchool = [];
+        $schoolNames = []; // Map school code to institution name.
         foreach ($students as $student) {
             $schoolcode = !empty($student->schoolcode) ? $student->schoolcode : 'UNKNOWN';
             if (!isset($studentsBySchool[$schoolcode])) {
                 $studentsBySchool[$schoolcode] = [];
+                // Store the institution name for this school code.
+                $schoolNames[$schoolcode] = !empty($student->institution) ? $student->institution : $schoolcode;
             }
             $studentsBySchool[$schoolcode][] = $student;
         }
@@ -96,7 +99,7 @@ class course_report_helper {
 
             $schoolReports[] = [
                 'school_code' => $schoolcode,
-                'school_name' => $schoolcode, // Could look up from registry.
+                'school_name' => $schoolNames[$schoolcode] ?? $schoolcode,
                 'student_count' => count($schoolStudents),
                 'sections' => $sectionStats,
             ];
@@ -236,7 +239,7 @@ class course_report_helper {
             return [];
         }
 
-        $sql = "SELECT DISTINCT u.id, u.firstname, u.lastname, u.schoolcode
+        $sql = "SELECT DISTINCT u.id, u.firstname, u.lastname, u.schoolcode, u.institution
                 FROM {user} u
                 JOIN {user_enrolments} ue ON ue.userid = u.id
                 JOIN {enrol} e ON e.id = ue.enrolid
