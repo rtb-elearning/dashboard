@@ -43,10 +43,12 @@ function SearchableSelect({ options, selectedId, placeholder, onSelect }: Search
     const containerRef = useRef<HTMLDivElement>(null);
     const searchInputRef = useRef<HTMLInputElement>(null);
 
-    const selectedOption = options.find(opt => opt.id === selectedId);
+    // Use == for comparison to handle string/number type mismatch from URL params
+    const selectedOption = options.find(opt => opt.id == selectedId);
 
-    // Filter options based on search query
+    // Filter options based on search query (searches ID, fullname, shortname)
     const filteredOptions = options.filter(opt =>
+        opt.id.toString().includes(searchQuery) ||
         opt.fullname.toLowerCase().includes(searchQuery.toLowerCase()) ||
         opt.shortname.toLowerCase().includes(searchQuery.toLowerCase())
     );
@@ -86,7 +88,7 @@ function SearchableSelect({ options, selectedId, placeholder, onSelect }: Search
                 className="w-full px-4 py-2.5 text-left bg-white border border-gray-300 rounded-lg flex items-center justify-between hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
                 <span className={selectedOption ? 'text-gray-900' : 'text-gray-500'}>
-                    {selectedOption ? selectedOption.fullname : placeholder}
+                    {selectedOption ? `[${selectedOption.id}] ${selectedOption.fullname}` : placeholder}
                 </span>
                 <svg
                     className={`w-5 h-5 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
@@ -130,10 +132,13 @@ function SearchableSelect({ options, selectedId, placeholder, onSelect }: Search
                                     type="button"
                                     onClick={() => handleSelect(option.id)}
                                     className={`w-full px-4 py-2.5 text-left text-sm hover:bg-blue-50 flex items-center justify-between ${
-                                        option.id === selectedId ? 'bg-blue-50 text-blue-700' : 'text-gray-700'
+                                        option.id == selectedId ? 'bg-blue-50 text-blue-700' : 'text-gray-700'
                                     }`}
                                 >
-                                    <span className="truncate">{option.fullname}</span>
+                                    <div className="flex items-center gap-2 truncate">
+                                        <span className="text-xs text-gray-400 shrink-0">[{option.id}]</span>
+                                        <span className="truncate">{option.fullname}</span>
+                                    </div>
                                     <span className="text-xs text-gray-400 ml-2 shrink-0">
                                         {option.enrolled_count} enrolled
                                     </span>
@@ -215,13 +220,13 @@ function SchoolBarChart({ schools, sectionIndex, themeConfig }: {
                     <span className="text-xs text-gray-600">Completion Rate</span>
                 </div>
             </div>
-            <div className="flex items-end gap-6 overflow-x-auto pb-24 pt-2">
+            <div className="flex items-end gap-6 overflow-x-auto pb-36 pt-2">
                 {schools.slice(0, 15).map((school, idx) => {
                     const section = school.sections[sectionIndex];
                     const avgHeight = section ? (section.average_grade || 0) : 0;
                     const crHeight = section ? section.completion_rate : 0;
                     const fullName = String(school.school_name || '-');
-                    const displayName = truncateText(fullName, 12);
+                    const displayName = truncateText(fullName, 18);
 
                     return (
                         <div key={school.school_code || `school-${idx}`} className="flex flex-col items-center min-w-[40px] relative">
@@ -477,7 +482,7 @@ export default function CoursesReport({ data, themeConfig }: CoursesReportProps)
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                                 <div>
                                     <h4 className="text-sm text-gray-600 mb-2">
-                                        Completion rate and Average score for each TTC
+                                        Completion rate and Average score for each school
                                     </h4>
                                     <SchoolBarChart
                                         schools={data.course_report.schools}
@@ -487,7 +492,7 @@ export default function CoursesReport({ data, themeConfig }: CoursesReportProps)
                                 </div>
                                 <div>
                                     <h4 className="text-sm text-gray-600 mb-2">
-                                        Completion rate x Average score for each TTC
+                                        Completion rate x Average score for each school
                                     </h4>
                                     <ScatterPlot
                                         schools={data.course_report.schools}
