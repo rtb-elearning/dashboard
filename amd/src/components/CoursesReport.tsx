@@ -21,11 +21,134 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-import type { CoursesReportData, ThemeConfig, CourseReport, SchoolReport } from '../types';
+import { useState, useEffect, useRef } from 'preact/hooks';
+import type { CoursesReportData, ThemeConfig, CourseReport, SchoolReport, CourseListItem } from '../types';
 
 interface CoursesReportProps {
     data: CoursesReportData;
     themeConfig: ThemeConfig;
+}
+
+// Searchable Select Component
+interface SearchableSelectProps {
+    options: CourseListItem[];
+    selectedId: number | null;
+    placeholder: string;
+    onSelect: (id: number) => void;
+}
+
+function SearchableSelect({ options, selectedId, placeholder, onSelect }: SearchableSelectProps) {
+    const [isOpen, setIsOpen] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const containerRef = useRef<HTMLDivElement>(null);
+    const searchInputRef = useRef<HTMLInputElement>(null);
+
+    const selectedOption = options.find(opt => opt.id === selectedId);
+
+    // Filter options based on search query
+    const filteredOptions = options.filter(opt =>
+        opt.fullname.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        opt.shortname.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    // Handle click outside to close dropdown
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+                setSearchQuery('');
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    // Focus search input when dropdown opens
+    useEffect(() => {
+        if (isOpen && searchInputRef.current) {
+            searchInputRef.current.focus();
+        }
+    }, [isOpen]);
+
+    const handleSelect = (id: number) => {
+        onSelect(id);
+        setIsOpen(false);
+        setSearchQuery('');
+    };
+
+    return (
+        <div ref={containerRef} className="relative w-full max-w-md">
+            {/* Trigger Button */}
+            <button
+                type="button"
+                onClick={() => setIsOpen(!isOpen)}
+                className="w-full px-4 py-2.5 text-left bg-white border border-gray-300 rounded-lg flex items-center justify-between hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+                <span className={selectedOption ? 'text-gray-900' : 'text-gray-500'}>
+                    {selectedOption ? selectedOption.fullname : placeholder}
+                </span>
+                <svg
+                    className={`w-5 h-5 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                >
+                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+            </button>
+
+            {/* Dropdown */}
+            {isOpen && (
+                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg">
+                    {/* Search Input */}
+                    <div className="p-2 border-b border-gray-100">
+                        <div className="relative">
+                            <svg
+                                className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
+                                viewBox="0 0 20 20"
+                                fill="currentColor"
+                            >
+                                <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+                            </svg>
+                            <input
+                                ref={searchInputRef}
+                                type="text"
+                                placeholder="Search course..."
+                                value={searchQuery}
+                                onInput={(e) => setSearchQuery((e.target as HTMLInputElement).value)}
+                                className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Options List */}
+                    <div className="max-h-60 overflow-y-auto">
+                        {filteredOptions.length > 0 ? (
+                            filteredOptions.map(option => (
+                                <button
+                                    key={option.id}
+                                    type="button"
+                                    onClick={() => handleSelect(option.id)}
+                                    className={`w-full px-4 py-2.5 text-left text-sm hover:bg-blue-50 flex items-center justify-between ${
+                                        option.id === selectedId ? 'bg-blue-50 text-blue-700' : 'text-gray-700'
+                                    }`}
+                                >
+                                    <span className="truncate">{option.fullname}</span>
+                                    <span className="text-xs text-gray-400 ml-2 shrink-0">
+                                        {option.enrolled_count} enrolled
+                                    </span>
+                                </button>
+                            ))
+                        ) : (
+                            <div className="px-4 py-3 text-sm text-gray-500 text-center">
+                                No courses found
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
 }
 
 // Donut Chart Component for completion rate
@@ -295,12 +418,8 @@ function ReportTable({ report, themeConfig }: { report: CourseReport; themeConfi
 }
 
 export default function CoursesReport({ data, themeConfig }: CoursesReportProps) {
-    const handleCourseChange = (e: Event) => {
-        const select = e.target as HTMLSelectElement;
-        const courseid = select.value;
-        if (courseid) {
-            window.location.href = `/local/elby_dashboard/courses.php?courseid=${courseid}`;
-        }
+    const handleCourseSelect = (courseid: number) => {
+        window.location.href = `/local/elby_dashboard/courses.php?courseid=${courseid}`;
     };
 
     return (
@@ -308,18 +427,12 @@ export default function CoursesReport({ data, themeConfig }: CoursesReportProps)
             {/* Course Selector */}
             <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-700 mb-2">Select Course</label>
-                <select
-                    className="w-full max-w-md px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={data.selected_courseid || ''}
-                    onChange={handleCourseChange}
-                >
-                    <option value="">-- Select a course --</option>
-                    {data.courses_list.map(course => (
-                        <option key={course.id} value={course.id}>
-                            {course.fullname} ({course.enrolled_count} enrolled)
-                        </option>
-                    ))}
-                </select>
+                <SearchableSelect
+                    options={data.courses_list}
+                    selectedId={data.selected_courseid}
+                    placeholder="Select a course..."
+                    onSelect={handleCourseSelect}
+                />
             </div>
 
             {data.course_report ? (
