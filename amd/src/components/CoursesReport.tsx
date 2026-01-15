@@ -95,7 +95,7 @@ function SchoolBarChart({ schools, sectionIndex, themeConfig }: {
                     const crHeight = section ? section.completion_rate : 0;
 
                     return (
-                        <div key={school.school_code} className="flex flex-col items-center min-w-[40px]">
+                        <div key={school.school_code || `school-${idx}`} className="flex flex-col items-center min-w-[40px]">
                             <div className="flex gap-1 items-end h-32">
                                 <div
                                     className="w-3 rounded-t-sm"
@@ -114,8 +114,8 @@ function SchoolBarChart({ schools, sectionIndex, themeConfig }: {
                                     title={`CR: ${crHeight.toFixed(1)}%`}
                                 />
                             </div>
-                            <span className="text-[10px] text-gray-500 mt-1 truncate max-w-[40px]" title={school.school_code}>
-                                {school.school_code.substring(0, 6)}
+                            <span className="text-[10px] text-gray-500 mt-1 truncate max-w-[40px]" title={String(school.school_code || '')}>
+                                {String(school.school_code || '').substring(0, 6) || '-'}
                             </span>
                         </div>
                     );
@@ -158,14 +158,14 @@ function ScatterPlot({ schools, sectionIndex, themeConfig }: {
 
                     return (
                         <div
-                            key={school.school_code}
+                            key={school.school_code || `scatter-${idx}`}
                             className="absolute w-2 h-2 rounded-full transform -translate-x-1/2 -translate-y-1/2"
                             style={{
                                 left: `${x}%`,
                                 bottom: `${y}%`,
                                 backgroundColor: themeConfig.chartPrimaryColor,
                             }}
-                            title={`${school.school_name}: CR ${x.toFixed(1)}%, Avg ${y.toFixed(1)}%`}
+                            title={`${school.school_name || 'Unknown'}: CR ${x.toFixed(1)}%, Avg ${y.toFixed(1)}%`}
                         />
                     );
                 })}
@@ -207,7 +207,7 @@ function ReportTable({ report, themeConfig }: { report: CourseReport; themeConfi
                     </thead>
                     <tbody>
                         {report.schools.map((school, idx) => (
-                            <tr key={school.school_code} className="border-t border-gray-100 hover:bg-gray-50">
+                            <tr key={school.school_code || `row-${idx}`} className="border-t border-gray-100 hover:bg-gray-50">
                                 <td className="px-3 py-2 text-gray-500 sticky left-0 bg-white">{idx + 1}</td>
                                 <td className="px-3 py-2 font-medium text-gray-800 sticky left-8 bg-white">
                                     {school.school_name}
