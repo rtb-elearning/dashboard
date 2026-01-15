@@ -102,9 +102,9 @@ function SearchableSelect({ options, selectedId, placeholder, onSelect }: Search
                 <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg">
                     {/* Search Input */}
                     <div className="p-2 border-b border-gray-100">
-                        <div className="relative">
+                        <div className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-md focus-within:ring-1 focus-within:ring-blue-500 focus-within:border-blue-500">
                             <svg
-                                className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
+                                className="w-4 h-4 text-gray-400 shrink-0"
                                 viewBox="0 0 20 20"
                                 fill="currentColor"
                             >
@@ -116,7 +116,7 @@ function SearchableSelect({ options, selectedId, placeholder, onSelect }: Search
                                 placeholder="Search course..."
                                 value={searchQuery}
                                 onInput={(e) => setSearchQuery((e.target as HTMLInputElement).value)}
-                                className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                className="w-full text-sm bg-transparent border-none outline-none focus:outline-none focus:ring-0"
                             />
                         </div>
                     </div>
