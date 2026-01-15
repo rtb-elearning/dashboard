@@ -114,8 +114,8 @@ function SchoolBarChart({ schools, sectionIndex, themeConfig }: {
                                     title={`CR: ${crHeight.toFixed(1)}%`}
                                 />
                             </div>
-                            <span className="text-[10px] text-gray-500 mt-1 truncate max-w-[40px]" title={String(school.school_code || '')}>
-                                {String(school.school_code || '').substring(0, 6) || '-'}
+                            <span className="text-[10px] text-gray-500 mt-1 truncate max-w-[40px]" title={String(school.school_name || '')}>
+                                {String(school.school_name || '').substring(0, 8) || '-'}
                             </span>
                         </div>
                     );
