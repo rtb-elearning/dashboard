@@ -68,6 +68,12 @@ function CompletionDonut({ rate, label, color }: { rate: number; label: string; 
     );
 }
 
+// Truncate text with ellipsis
+function truncateText(text: string, maxLength: number): string {
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength - 1) + '…';
+}
+
 // Bar Chart for completion rate and average score per school
 function SchoolBarChart({ schools, sectionIndex, themeConfig }: {
     schools: SchoolReport[];
@@ -86,42 +92,46 @@ function SchoolBarChart({ schools, sectionIndex, themeConfig }: {
                     <span className="text-xs text-gray-600">Completion Rate</span>
                 </div>
             </div>
-            <div className="flex items-end gap-4 overflow-x-auto pb-20">
+            <div className="flex items-end gap-6 overflow-x-auto pb-24 pt-2">
                 {schools.slice(0, 15).map((school, idx) => {
                     const section = school.sections[sectionIndex];
                     const avgHeight = section ? (section.average_grade || 0) : 0;
                     const crHeight = section ? section.completion_rate : 0;
+                    const fullName = String(school.school_name || '-');
+                    const displayName = truncateText(fullName, 12);
 
                     return (
-                        <div key={school.school_code || `school-${idx}`} className="flex flex-col items-center min-w-[30px] relative">
+                        <div key={school.school_code || `school-${idx}`} className="flex flex-col items-center min-w-[40px] relative">
                             <div className="flex gap-1 items-end h-32">
                                 <div
-                                    className="w-3 rounded-t-sm"
+                                    className="w-4 rounded-t-sm cursor-pointer"
                                     style={{
                                         height: `${avgHeight}%`,
                                         backgroundColor: themeConfig.chartPrimaryColor,
                                     }}
-                                    title={`Avg: ${avgHeight.toFixed(1)}%`}
+                                    title={`${fullName}\nAvg: ${avgHeight.toFixed(1)}%`}
                                 />
                                 <div
-                                    className="w-3 rounded-t-sm"
+                                    className="w-4 rounded-t-sm cursor-pointer"
                                     style={{
                                         height: `${crHeight}%`,
                                         backgroundColor: themeConfig.chartSecondaryColor,
                                     }}
-                                    title={`CR: ${crHeight.toFixed(1)}%`}
+                                    title={`${fullName}\nCR: ${crHeight.toFixed(1)}%`}
                                 />
                             </div>
                             <span
-                                className="text-[10px] text-gray-600 absolute whitespace-nowrap origin-top-left"
+                                className="text-[10px] text-gray-600 absolute whitespace-nowrap origin-top-left cursor-default"
                                 style={{
                                     top: '100%',
                                     left: '50%',
-                                    transform: 'rotate(45deg) translateX(-50%)',
-                                    marginTop: '4px',
+                                    transform: 'rotate(45deg)',
+                                    marginTop: '6px',
+                                    marginLeft: '-4px',
                                 }}
+                                title={fullName}
                             >
-                                {String(school.school_name || '-')}
+                                {displayName}
                             </span>
                         </div>
                     );
@@ -138,12 +148,20 @@ function ScatterPlot({ schools, sectionIndex, themeConfig }: {
     themeConfig: ThemeConfig;
 }) {
     return (
-        <div className="bg-white rounded-xl p-4 shadow-sm overflow-x-auto">
-            <div className="relative h-48 border-l border-b border-gray-200 mr-32 min-w-[300px]">
+        <div className="bg-white rounded-xl p-4 shadow-sm">
+            <p className="text-[10px] text-gray-400 mb-2 italic">Hover over points to see school names</p>
+            <div className="relative h-48 border-l border-b border-gray-200 ml-6">
                 {/* Y-axis label */}
-                <div className="absolute -left-6 top-1/2 -rotate-90 text-xs text-gray-500">Score</div>
+                <div className="absolute -left-6 top-1/2 -rotate-90 text-xs text-gray-500 whitespace-nowrap">Avg Score</div>
                 {/* X-axis label */}
-                <div className="absolute bottom-[-20px] left-1/2 text-xs text-gray-500">Completion Rate</div>
+                <div className="absolute bottom-[-24px] left-1/2 -translate-x-1/2 text-xs text-gray-500">Completion Rate</div>
+
+                {/* Y-axis values */}
+                {[0, 25, 50, 75, 100].map(pct => (
+                    <div key={`y-${pct}`} className="absolute text-[10px] text-gray-400" style={{ bottom: `${pct}%`, left: '-20px', transform: 'translateY(50%)' }}>
+                        {pct}
+                    </div>
+                ))}
 
                 {/* Grid lines */}
                 {[0, 25, 50, 75, 100].map(pct => (
@@ -154,48 +172,44 @@ function ScatterPlot({ schools, sectionIndex, themeConfig }: {
                     />
                 ))}
 
-                {/* Data points with labels */}
+                {/* Vertical grid lines */}
+                {[0, 25, 50, 75, 100].map(pct => (
+                    <div
+                        key={`v-${pct}`}
+                        className="absolute h-full border-l border-dashed border-gray-100"
+                        style={{ left: `${pct}%` }}
+                    />
+                ))}
+
+                {/* Data points - hover shows school name */}
                 {schools.map((school, idx) => {
                     const section = school.sections[sectionIndex];
                     if (!section) return null;
 
                     const x = section.completion_rate;
                     const y = section.average_grade || 0;
+                    const fullName = String(school.school_name || 'Unknown');
 
                     return (
                         <div
                             key={school.school_code || `scatter-${idx}`}
-                            className="absolute"
+                            className="absolute w-3 h-3 rounded-full cursor-pointer transform -translate-x-1/2 translate-y-1/2 hover:scale-150 hover:z-10 transition-transform"
                             style={{
                                 left: `${x}%`,
                                 bottom: `${y}%`,
+                                backgroundColor: themeConfig.chartPrimaryColor,
                             }}
-                        >
-                            {/* Data point */}
-                            <div
-                                className="w-2 h-2 rounded-full transform -translate-x-1/2 translate-y-1/2"
-                                style={{ backgroundColor: themeConfig.chartPrimaryColor }}
-                                title={`${school.school_name || 'Unknown'}: CR ${x.toFixed(1)}%, Avg ${y.toFixed(1)}%`}
-                            />
-                            {/* School name label */}
-                            <span
-                                className="text-[9px] text-gray-600 absolute whitespace-nowrap origin-bottom-left"
-                                style={{
-                                    left: '4px',
-                                    bottom: '0',
-                                    transform: 'rotate(-45deg)',
-                                }}
-                            >
-                                {String(school.school_name || '-')}
-                            </span>
-                        </div>
+                            title={`${fullName}\nCompletion: ${x.toFixed(1)}%\nAvg Score: ${y.toFixed(1)}%`}
+                        />
                     );
                 })}
             </div>
             {/* X-axis labels */}
-            <div className="flex justify-between text-xs text-gray-400 mt-1 pl-4 mr-32">
+            <div className="flex justify-between text-[10px] text-gray-400 mt-2 ml-6">
                 <span>0%</span>
+                <span>25%</span>
                 <span>50%</span>
+                <span>75%</span>
                 <span>100%</span>
             </div>
         </div>
