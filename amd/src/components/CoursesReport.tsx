@@ -209,18 +209,18 @@ function SchoolBarChart({ schools, sectionIndex, themeConfig }: {
     themeConfig: ThemeConfig;
 }) {
     return (
-        <div className="bg-white rounded-xl p-4 shadow-sm">
-            <div className="flex items-center gap-4 mb-4">
+        <div className="bg-white rounded-xl p-6 shadow-sm">
+            <div className="flex items-center gap-4 mb-6">
                 <div className="flex items-center gap-2">
                     <span className="w-3 h-3 rounded-full" style={{ backgroundColor: themeConfig.chartPrimaryColor }}></span>
-                    <span className="text-xs text-gray-600">Average</span>
+                    <span className="text-sm text-gray-600">Average</span>
                 </div>
                 <div className="flex items-center gap-2">
                     <span className="w-3 h-3 rounded-full" style={{ backgroundColor: themeConfig.chartSecondaryColor }}></span>
-                    <span className="text-xs text-gray-600">Completion Rate</span>
+                    <span className="text-sm text-gray-600">Completion Rate</span>
                 </div>
             </div>
-            <div className="flex items-end gap-6 overflow-x-auto pb-36 pt-2">
+            <div className="flex items-end gap-8 overflow-x-auto pb-52 pt-2">
                 {schools.slice(0, 15).map((school, idx) => {
                     const section = school.sections[sectionIndex];
                     const avgHeight = section ? (section.average_grade || 0) : 0;
@@ -229,10 +229,10 @@ function SchoolBarChart({ schools, sectionIndex, themeConfig }: {
                     const displayName = truncateText(fullName, 18);
 
                     return (
-                        <div key={school.school_code || `school-${idx}`} className="flex flex-col items-center min-w-[40px] relative">
-                            <div className="flex gap-1 items-end h-32">
+                        <div key={school.school_code || `school-${idx}`} className="flex flex-col items-center min-w-[50px] relative">
+                            <div className="flex gap-1 items-end h-48">
                                 <div
-                                    className="w-4 rounded-t-sm cursor-pointer"
+                                    className="w-5 rounded-t-sm cursor-pointer"
                                     style={{
                                         height: `${avgHeight}%`,
                                         backgroundColor: themeConfig.chartPrimaryColor,
@@ -240,7 +240,7 @@ function SchoolBarChart({ schools, sectionIndex, themeConfig }: {
                                     title={`${fullName}\nAvg: ${avgHeight.toFixed(1)}%`}
                                 />
                                 <div
-                                    className="w-4 rounded-t-sm cursor-pointer"
+                                    className="w-5 rounded-t-sm cursor-pointer"
                                     style={{
                                         height: `${crHeight}%`,
                                         backgroundColor: themeConfig.chartSecondaryColor,
@@ -276,9 +276,9 @@ function ScatterPlot({ schools, sectionIndex, themeConfig }: {
     themeConfig: ThemeConfig;
 }) {
     return (
-        <div className="bg-white rounded-xl p-4 shadow-sm">
-            <p className="text-[10px] text-gray-400 mb-2 italic">Hover over points to see school names</p>
-            <div className="relative h-48 border-l border-b border-gray-200 ml-6">
+        <div className="bg-white rounded-xl p-6 shadow-sm">
+            <p className="text-xs text-gray-400 mb-3 italic">Hover over points to see school names</p>
+            <div className="relative h-64 border-l border-b border-gray-200 ml-8">
                 {/* Y-axis label */}
                 <div className="absolute -left-6 top-1/2 -rotate-90 text-xs text-gray-500 whitespace-nowrap">Avg Score</div>
                 {/* X-axis label */}
@@ -333,7 +333,7 @@ function ScatterPlot({ schools, sectionIndex, themeConfig }: {
                 })}
             </div>
             {/* X-axis labels */}
-            <div className="flex justify-between text-[10px] text-gray-400 mt-2 ml-6">
+            <div className="flex justify-between text-xs text-gray-400 mt-3 ml-8">
                 <span>0%</span>
                 <span>25%</span>
                 <span>50%</span>
