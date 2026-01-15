@@ -74,8 +74,6 @@ function SchoolBarChart({ schools, sectionIndex, themeConfig }: {
     sectionIndex: number;
     themeConfig: ThemeConfig;
 }) {
-    const maxStudents = Math.max(...schools.map(s => s.student_count), 1);
-
     return (
         <div className="bg-white rounded-xl p-4 shadow-sm">
             <div className="flex items-center gap-4 mb-4">
@@ -88,14 +86,14 @@ function SchoolBarChart({ schools, sectionIndex, themeConfig }: {
                     <span className="text-xs text-gray-600">Completion Rate</span>
                 </div>
             </div>
-            <div className="flex items-end gap-2 h-40 overflow-x-auto pb-2">
+            <div className="flex items-end gap-4 overflow-x-auto pb-20">
                 {schools.slice(0, 15).map((school, idx) => {
                     const section = school.sections[sectionIndex];
                     const avgHeight = section ? (section.average_grade || 0) : 0;
                     const crHeight = section ? section.completion_rate : 0;
 
                     return (
-                        <div key={school.school_code || `school-${idx}`} className="flex flex-col items-center min-w-[40px]">
+                        <div key={school.school_code || `school-${idx}`} className="flex flex-col items-center min-w-[30px] relative">
                             <div className="flex gap-1 items-end h-32">
                                 <div
                                     className="w-3 rounded-t-sm"
@@ -114,8 +112,16 @@ function SchoolBarChart({ schools, sectionIndex, themeConfig }: {
                                     title={`CR: ${crHeight.toFixed(1)}%`}
                                 />
                             </div>
-                            <span className="text-[10px] text-gray-500 mt-1 truncate max-w-[40px]" title={String(school.school_name || '')}>
-                                {String(school.school_name || '').substring(0, 8) || '-'}
+                            <span
+                                className="text-[10px] text-gray-600 absolute whitespace-nowrap origin-top-left"
+                                style={{
+                                    top: '100%',
+                                    left: '50%',
+                                    transform: 'rotate(45deg) translateX(-50%)',
+                                    marginTop: '4px',
+                                }}
+                            >
+                                {String(school.school_name || '-')}
                             </span>
                         </div>
                     );
@@ -132,8 +138,8 @@ function ScatterPlot({ schools, sectionIndex, themeConfig }: {
     themeConfig: ThemeConfig;
 }) {
     return (
-        <div className="bg-white rounded-xl p-4 shadow-sm">
-            <div className="relative h-40 border-l border-b border-gray-200">
+        <div className="bg-white rounded-xl p-4 shadow-sm overflow-x-auto">
+            <div className="relative h-48 border-l border-b border-gray-200 mr-32 min-w-[300px]">
                 {/* Y-axis label */}
                 <div className="absolute -left-6 top-1/2 -rotate-90 text-xs text-gray-500">Score</div>
                 {/* X-axis label */}
@@ -148,7 +154,7 @@ function ScatterPlot({ schools, sectionIndex, themeConfig }: {
                     />
                 ))}
 
-                {/* Data points */}
+                {/* Data points with labels */}
                 {schools.map((school, idx) => {
                     const section = school.sections[sectionIndex];
                     if (!section) return null;
@@ -159,19 +165,35 @@ function ScatterPlot({ schools, sectionIndex, themeConfig }: {
                     return (
                         <div
                             key={school.school_code || `scatter-${idx}`}
-                            className="absolute w-2 h-2 rounded-full transform -translate-x-1/2 -translate-y-1/2"
+                            className="absolute"
                             style={{
                                 left: `${x}%`,
                                 bottom: `${y}%`,
-                                backgroundColor: themeConfig.chartPrimaryColor,
                             }}
-                            title={`${school.school_name || 'Unknown'}: CR ${x.toFixed(1)}%, Avg ${y.toFixed(1)}%`}
-                        />
+                        >
+                            {/* Data point */}
+                            <div
+                                className="w-2 h-2 rounded-full transform -translate-x-1/2 translate-y-1/2"
+                                style={{ backgroundColor: themeConfig.chartPrimaryColor }}
+                                title={`${school.school_name || 'Unknown'}: CR ${x.toFixed(1)}%, Avg ${y.toFixed(1)}%`}
+                            />
+                            {/* School name label */}
+                            <span
+                                className="text-[9px] text-gray-600 absolute whitespace-nowrap origin-bottom-left"
+                                style={{
+                                    left: '4px',
+                                    bottom: '0',
+                                    transform: 'rotate(-45deg)',
+                                }}
+                            >
+                                {String(school.school_name || '-')}
+                            </span>
+                        </div>
                     );
                 })}
             </div>
             {/* X-axis labels */}
-            <div className="flex justify-between text-xs text-gray-400 mt-1 pl-4">
+            <div className="flex justify-between text-xs text-gray-400 mt-1 pl-4 mr-32">
                 <span>0%</span>
                 <span>50%</span>
                 <span>100%</span>
