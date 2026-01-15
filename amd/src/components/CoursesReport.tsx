@@ -209,7 +209,7 @@ function SchoolBarChart({ schools, sectionIndex, themeConfig }: {
     themeConfig: ThemeConfig;
 }) {
     return (
-        <div className="bg-white rounded-xl p-6 shadow-sm">
+        <div className="bg-white rounded-xl p-6 shadow-sm overflow-visible">
             <div className="flex items-center gap-4 mb-6">
                 <div className="flex items-center gap-2">
                     <span className="w-3 h-3 rounded-full" style={{ backgroundColor: themeConfig.chartPrimaryColor }}></span>
@@ -220,16 +220,16 @@ function SchoolBarChart({ schools, sectionIndex, themeConfig }: {
                     <span className="text-sm text-gray-600">Completion Rate</span>
                 </div>
             </div>
-            <div className="flex items-end gap-8 overflow-x-auto pb-52 pt-2">
+            <div className="flex items-end gap-8 overflow-x-auto">
                 {schools.slice(0, 15).map((school, idx) => {
                     const section = school.sections[sectionIndex];
                     const avgHeight = section ? (section.average_grade || 0) : 0;
                     const crHeight = section ? section.completion_rate : 0;
                     const fullName = String(school.school_name || '-');
-                    const displayName = truncateText(fullName, 18);
+                    const displayName = truncateText(fullName, 20);
 
                     return (
-                        <div key={school.school_code || `school-${idx}`} className="flex flex-col items-center min-w-[50px] relative">
+                        <div key={school.school_code || `school-${idx}`} className="flex flex-col items-center min-w-[50px]">
                             <div className="flex gap-1 items-end h-48">
                                 <div
                                     className="w-5 rounded-t-sm cursor-pointer"
@@ -248,19 +248,15 @@ function SchoolBarChart({ schools, sectionIndex, themeConfig }: {
                                     title={`${fullName}\nCR: ${crHeight.toFixed(1)}%`}
                                 />
                             </div>
-                            <span
-                                className="text-[10px] text-gray-600 absolute whitespace-nowrap origin-top-left cursor-default"
-                                style={{
-                                    top: '100%',
-                                    left: '50%',
-                                    transform: 'rotate(45deg)',
-                                    marginTop: '6px',
-                                    marginLeft: '-4px',
-                                }}
-                                title={fullName}
-                            >
-                                {displayName}
-                            </span>
+                            <div className="h-32 flex items-start justify-center mt-2">
+                                <span
+                                    className="text-[11px] text-gray-600 whitespace-nowrap cursor-default origin-top"
+                                    style={{ transform: 'rotate(45deg)' }}
+                                    title={fullName}
+                                >
+                                    {displayName}
+                                </span>
+                            </div>
                         </div>
                     );
                 })}
