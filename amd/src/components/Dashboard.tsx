@@ -247,7 +247,7 @@ const CoursesIcon = () => (
 
 export default function Dashboard({ user, stats, themeConfig }: DashboardProps) {
     return (
-        <div className="p-6 bg-gray-50 min-h-screen">
+        <div className="p-2 sm:p-4 lg:p-6 bg-gray-50 min-h-screen">
             {/* Stats Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                 <StatCard

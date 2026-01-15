@@ -50,7 +50,7 @@ function Header({ user, activePage, themeConfig, onMenuClick }: {
                       activePage === 'courses' ? 'Courses Report' : 'Dashboard';
 
     return (
-        <header className="bg-white border-b border-gray-100 px-4 lg:px-6 py-4">
+        <header className="bg-white border-b border-gray-100 px-2 sm:px-4 lg:px-6 py-3 sm:py-4">
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                     {/* Hamburger Menu - Mobile only */}

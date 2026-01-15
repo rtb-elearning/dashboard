@@ -377,7 +377,7 @@ export default function CompletionReport() {
     const currentGrandTotal = selectedParentId === 0 ? grandTotal : calculateGrandTotal();
 
     return (
-        <div className="p-6 bg-white min-h-screen">
+        <div className="p-2 sm:p-4 lg:p-6 bg-white min-h-screen">
             {/* Page Header */}
             <div className="mb-6">
                 <h1 className="text-2xl font-bold text-gray-800">Overview</h1>

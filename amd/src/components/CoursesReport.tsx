@@ -424,7 +424,7 @@ export default function CoursesReport({ data, themeConfig }: CoursesReportProps)
     };
 
     return (
-        <div className="p-6 bg-gray-50 min-h-screen">
+        <div className="p-2 sm:p-4 lg:p-6 bg-gray-50 min-h-screen">
             {/* Course Selector */}
             <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-700 mb-2">Select Course</label>
