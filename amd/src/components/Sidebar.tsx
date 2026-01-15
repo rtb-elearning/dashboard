@@ -27,6 +27,8 @@ interface SidebarProps {
     activePage: PageId;
     sidenavConfig: SidenavConfig;
     themeConfig: ThemeConfig;
+    isOpen: boolean;
+    onClose: () => void;
 }
 
 // Menu items
@@ -102,7 +104,7 @@ const DefaultLogoIcon = () => (
     </svg>
 );
 
-export default function Sidebar({ activePage, sidenavConfig, themeConfig }: SidebarProps) {
+export default function Sidebar({ activePage, sidenavConfig, themeConfig, isOpen, onClose }: SidebarProps) {
     // Filter menu items based on visibility settings
     const visibleMenuItems = menuItems.filter((item) => {
         // Dashboard (home) is always visible
@@ -112,68 +114,96 @@ export default function Sidebar({ activePage, sidenavConfig, themeConfig }: Side
     });
 
     return (
-        <aside className="w-72 bg-gray-50 border-r border-gray-200 py-6 pr-4 overflow-y-auto min-h-screen flex flex-col">
-            {/* Logo */}
-            <div className="pl-3 pb-6 flex items-center gap-3">
-                {sidenavConfig.logoUrl ? (
-                    <img
-                        src={sidenavConfig.logoUrl}
-                        alt={sidenavConfig.title}
-                        className="w-8 h-8 object-contain"
-                    />
-                ) : (
-                    <DefaultLogoIcon />
-                )}
-                <span className="text-lg font-bold text-gray-800">{sidenavConfig.title}</span>
-            </div>
+        <>
+            {/* Mobile backdrop overlay */}
+            {isOpen && (
+                <div
+                    className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+                    onClick={onClose}
+                />
+            )}
 
-            {/* Main Menu Section */}
-            <div className="mb-8 flex-1">
-                <h6 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 pl-3">
-                    Menu
-                </h6>
-                <ul className="space-y-1 m-0 p-0 list-none">
-                    {visibleMenuItems.map((item) => {
-                        const isActive = item.id === activePage;
-                        return (
-                            <li key={item.id}>
-                                <a
-                                    href={item.url}
-                                    className={`flex items-center px-3 py-2 rounded text-sm transition-colors no-underline ${
-                                        isActive
-                                            ? 'text-white'
-                                            : 'text-gray-700 hover:bg-gray-200'
-                                    }`}
-                                    style={isActive ? { backgroundColor: themeConfig.sidenavAccentColor } : undefined}
-                                >
-                                    <span className={`w-5 mr-3 ${isActive ? 'text-white' : 'text-gray-500'}`}>
-                                        {icons[item.icon]}
-                                    </span>
-                                    <span>{item.name}</span>
-                                </a>
-                            </li>
-                        );
-                    })}
-                </ul>
-            </div>
+            {/* Sidebar */}
+            <aside className={`
+                fixed lg:static inset-y-0 left-0 z-50
+                w-72 bg-gray-50 border-r border-gray-200 py-6 pr-4 overflow-y-auto min-h-screen flex flex-col
+                transform transition-transform duration-300 ease-in-out
+                ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+            `}>
+                {/* Header with logo and close button */}
+                <div className="pl-3 pb-6 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        {sidenavConfig.logoUrl ? (
+                            <img
+                                src={sidenavConfig.logoUrl}
+                                alt={sidenavConfig.title}
+                                className="w-8 h-8 object-contain"
+                            />
+                        ) : (
+                            <DefaultLogoIcon />
+                        )}
+                        <span className="text-lg font-bold text-gray-800">{sidenavConfig.title}</span>
+                    </div>
+                    {/* Close button - Mobile only */}
+                    <button
+                        onClick={onClose}
+                        className="lg:hidden p-2 mr-2 text-gray-500 hover:text-gray-700 hover:bg-gray-200 rounded-lg"
+                        aria-label="Close menu"
+                    >
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
 
-            {/* Account Section */}
-            <div className="mt-auto">
-                <h6 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 pl-3">
-                    Account
-                </h6>
-                <ul className="space-y-1 m-0 p-0 list-none">
-                    <li>
-                        <a
-                            href="/login/logout.php"
-                            className="flex items-center px-3 py-2 rounded text-sm text-gray-700 hover:bg-gray-200 no-underline transition-colors"
-                        >
-                            <span className="w-5 mr-3 text-gray-500">{icons.logout}</span>
-                            <span>Log out</span>
-                        </a>
-                    </li>
-                </ul>
-            </div>
-        </aside>
+                {/* Main Menu Section */}
+                <div className="mb-8 flex-1">
+                    <h6 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 pl-3">
+                        Menu
+                    </h6>
+                    <ul className="space-y-1 m-0 p-0 list-none">
+                        {visibleMenuItems.map((item) => {
+                            const isActive = item.id === activePage;
+                            return (
+                                <li key={item.id}>
+                                    <a
+                                        href={item.url}
+                                        className={`flex items-center px-3 py-2 rounded text-sm transition-colors no-underline ${
+                                            isActive
+                                                ? 'text-white'
+                                                : 'text-gray-700 hover:bg-gray-200'
+                                        }`}
+                                        style={isActive ? { backgroundColor: themeConfig.sidenavAccentColor } : undefined}
+                                    >
+                                        <span className={`w-5 mr-3 ${isActive ? 'text-white' : 'text-gray-500'}`}>
+                                            {icons[item.icon]}
+                                        </span>
+                                        <span>{item.name}</span>
+                                    </a>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                </div>
+
+                {/* Account Section */}
+                <div className="mt-auto">
+                    <h6 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 pl-3">
+                        Account
+                    </h6>
+                    <ul className="space-y-1 m-0 p-0 list-none">
+                        <li>
+                            <a
+                                href="/login/logout.php"
+                                className="flex items-center px-3 py-2 rounded text-sm text-gray-700 hover:bg-gray-200 no-underline transition-colors"
+                            >
+                                <span className="w-5 mr-3 text-gray-500">{icons.logout}</span>
+                                <span>Log out</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </aside>
+        </>
     );
 }

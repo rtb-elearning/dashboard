@@ -21,6 +21,7 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
+import { useState } from 'preact/hooks';
 import './styles.css';
 import Dashboard from './components/Dashboard';
 import Sidebar from './components/Sidebar';
@@ -38,18 +39,35 @@ interface AppProps {
 }
 
 // Header component with search and user profile
-function Header({ user, activePage, themeConfig }: { user: UserData; activePage: PageId; themeConfig: ThemeConfig }) {
+function Header({ user, activePage, themeConfig, onMenuClick }: {
+    user: UserData;
+    activePage: PageId;
+    themeConfig: ThemeConfig;
+    onMenuClick: () => void;
+}) {
     const pageTitle = activePage === 'home' ? 'Dashboard' :
                       activePage === 'completion' ? 'Completion Report' :
                       activePage === 'courses' ? 'Courses Report' : 'Dashboard';
 
     return (
-        <header className="bg-white border-b border-gray-100 px-6 py-4">
+        <header className="bg-white border-b border-gray-100 px-4 lg:px-6 py-4">
             <div className="flex items-center justify-between">
-                {/* Page Title */}
-                <h1 className="text-xl font-semibold text-gray-800">{pageTitle}</h1>
+                <div className="flex items-center gap-3">
+                    {/* Hamburger Menu - Mobile only */}
+                    <button
+                        onClick={onMenuClick}
+                        className="lg:hidden p-2 -ml-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg"
+                        aria-label="Toggle menu"
+                    >
+                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
+                    </button>
+                    {/* Page Title */}
+                    <h1 className="text-xl font-semibold text-gray-800">{pageTitle}</h1>
+                </div>
 
-                <div className="flex items-center gap-6">
+                <div className="flex items-center gap-4 lg:gap-6">
                     {/* Notification Bell */}
                     {themeConfig.showNotifications && (
                         <button className="relative text-gray-500 hover:text-gray-700">
@@ -86,11 +104,22 @@ function Header({ user, activePage, themeConfig }: { user: UserData; activePage:
 }
 
 export default function App({ user, stats, activePage, sidenavConfig, themeConfig, coursesReportData }: AppProps) {
+    const [sidebarOpen, setSidebarOpen] = useState(false);
+
+    const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
+    const closeSidebar = () => setSidebarOpen(false);
+
     return (
         <div className="flex min-h-screen bg-gray-50">
-            <Sidebar activePage={activePage} sidenavConfig={sidenavConfig} themeConfig={themeConfig} />
+            <Sidebar
+                activePage={activePage}
+                sidenavConfig={sidenavConfig}
+                themeConfig={themeConfig}
+                isOpen={sidebarOpen}
+                onClose={closeSidebar}
+            />
             <div className="flex-1 flex flex-col overflow-hidden">
-                <Header user={user} activePage={activePage} themeConfig={themeConfig} />
+                <Header user={user} activePage={activePage} themeConfig={themeConfig} onMenuClick={toggleSidebar} />
                 <main className="flex-1 overflow-auto">
                     {activePage === 'home' && <Dashboard user={user} stats={stats} themeConfig={themeConfig} />}
                     {activePage === 'completion' && <CompletionReport />}
