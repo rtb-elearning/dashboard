@@ -503,7 +503,7 @@ function ReportTable({ report, themeConfig }: { report: CourseReport; themeConfi
                                 sortColumn={sortColumn}
                                 sortDirection={sortDirection}
                                 onSort={handleSort}
-                                className="px-3 py-2 text-center text-xs font-semibold text-gray-600 bg-gray-50"
+                                className="px-3 py-2 text-center text-xs font-semibold text-gray-600 sticky left-[232px] z-30 bg-gray-50"
                             >
                                 Enrolled students
                             </SortableHeader>
@@ -540,7 +540,7 @@ function ReportTable({ report, themeConfig }: { report: CourseReport; themeConfi
                                 <td className="px-3 py-2 font-medium text-gray-800 sticky left-8 z-10 bg-white group-hover:bg-gray-50 min-w-[200px]">
                                     {school.school_name}
                                 </td>
-                                <td className="px-3 py-2 text-center text-gray-600">{school.student_count}</td>
+                                <td className="px-3 py-2 text-center text-gray-600 sticky left-[232px] z-10 bg-white group-hover:bg-gray-50">{school.student_count}</td>
                                 {school.sections.map((section, sIdx) => (
                                     <>
                                         <td key={`avg-${sIdx}`} className="px-2 py-2 text-center text-gray-600">
@@ -561,7 +561,7 @@ function ReportTable({ report, themeConfig }: { report: CourseReport; themeConfi
                         <tr className="border-t-2 border-gray-300 bg-gray-50 font-semibold">
                             <td className="px-3 py-2 sticky left-0 z-10 bg-gray-50"></td>
                             <td className="px-3 py-2 sticky left-8 z-10 bg-gray-50 min-w-[200px]">Grand Total</td>
-                            <td className="px-3 py-2 text-center">{report.total_enrolled}</td>
+                            <td className="px-3 py-2 text-center sticky left-[232px] z-10 bg-gray-50">{report.total_enrolled}</td>
                             {report.overview_sections.map((section, idx) => {
                                 // Calculate averages
                                 const avgGrades = report.schools
