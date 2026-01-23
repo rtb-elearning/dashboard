@@ -135,7 +135,7 @@ function TreeNode({
                             type="button"
                             onClick={() => onSelect(course.id)}
                             className={`w-full py-2 text-left text-sm hover:bg-blue-50 flex items-center justify-between pr-3 ${
-                                course.id === selectedId ? 'bg-blue-50 text-blue-700' : 'text-gray-600'
+                                Number(course.id) === Number(selectedId) ? 'bg-blue-50 text-blue-700' : 'text-gray-600'
                             }`}
                             style={{ paddingLeft: (depth + 1) * 16 + 12 }}
                         >
@@ -157,8 +157,10 @@ function TreeNode({
 // Find course by traversing tree
 function findCourseInTree(nodes: CategoryNode[], courseId: number | null): CourseListItem | undefined {
     if (!courseId) return undefined;
+    // Use == for comparison to handle string/number type mismatches from JSON
+    const targetId = Number(courseId);
     for (const node of nodes) {
-        const found = node.courses.find(c => c.id === courseId);
+        const found = node.courses.find(c => Number(c.id) === targetId);
         if (found) return found;
         const inChildren = findCourseInTree(node.children, courseId);
         if (inChildren) return inChildren;
