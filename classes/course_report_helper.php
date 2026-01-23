@@ -141,9 +141,9 @@ class course_report_helper {
     }
 
     /**
-     * Get list of all courses with basic info.
+     * Get list of all courses grouped by category.
      *
-     * @return array List of courses
+     * @return array List of courses grouped by category
      */
     public static function get_courses_list(): array {
         global $DB;
@@ -156,20 +156,41 @@ class course_report_helper {
             'id, shortname, fullname, category'
         );
 
-        $result = [];
+        // Group by category.
+        $grouped = [];
         foreach ($courses as $course) {
+            $catid = $course->category;
+            if (!isset($grouped[$catid])) {
+                $grouped[$catid] = [
+                    'category_id' => $catid,
+                    'category_name' => '',
+                    'courses' => [],
+                ];
+            }
             $context = context_course::instance($course->id);
-            $enrolledcount = count_enrolled_users($context);
-
-            $result[] = [
+            $grouped[$catid]['courses'][] = [
                 'id' => $course->id,
                 'shortname' => $course->shortname,
                 'fullname' => $course->fullname,
-                'enrolled_count' => $enrolledcount,
+                'enrolled_count' => count_enrolled_users($context),
             ];
         }
 
-        return $result;
+        // Fetch category names.
+        $categoryids = array_keys($grouped);
+        if (!empty($categoryids)) {
+            list($insql, $params) = $DB->get_in_or_equal($categoryids);
+            $categories = $DB->get_records_select('course_categories', "id $insql", $params);
+            foreach ($categories as $cat) {
+                if (isset($grouped[$cat->id])) {
+                    $grouped[$cat->id]['category_name'] = $cat->name;
+                }
+            }
+        }
+
+        // Sort by category name and return.
+        usort($grouped, fn($a, $b) => strcmp($a['category_name'], $b['category_name']));
+        return array_values($grouped);
     }
 
     /**

@@ -91,6 +91,12 @@ export interface CourseListItem {
     enrolled_count: number;
 }
 
+export interface CourseCategory {
+    category_id: number;
+    category_name: string;
+    courses: CourseListItem[];
+}
+
 export interface SectionStat {
     section_number: number;
     section_name: string;
@@ -128,7 +134,7 @@ export interface AcademicYear {
 }
 
 export interface CoursesReportData {
-    courses_list: CourseListItem[];
+    courses_list: CourseCategory[];
     selected_courseid: number;
     course_report: CourseReport | null;
     available_years: AcademicYear[];

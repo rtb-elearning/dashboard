@@ -22,7 +22,7 @@
  */
 
 import { useState, useEffect, useRef, useMemo } from 'preact/hooks';
-import type { CoursesReportData, ThemeConfig, CourseReport, SchoolReport, CourseListItem } from '../types';
+import type { CoursesReportData, ThemeConfig, CourseReport, SchoolReport, CourseCategory } from '../types';
 
 // Sort configuration type
 type SortColumn = 'school' | 'students' | `avg-${number}` | `cr-${number}`;
@@ -33,29 +33,40 @@ interface CoursesReportProps {
     themeConfig: ThemeConfig;
 }
 
-// Searchable Select Component
-interface SearchableSelectProps {
-    options: CourseListItem[];
+// Grouped Course Select Component
+interface GroupedCourseSelectProps {
+    categories: CourseCategory[];
     selectedId: number | null;
     placeholder: string;
     onSelect: (id: number) => void;
 }
 
-function SearchableSelect({ options, selectedId, placeholder, onSelect }: SearchableSelectProps) {
+function GroupedCourseSelect({ categories, selectedId, placeholder, onSelect }: GroupedCourseSelectProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    const [expandedCategories, setExpandedCategories] = useState<Set<number>>(new Set());
     const containerRef = useRef<HTMLDivElement>(null);
     const searchInputRef = useRef<HTMLInputElement>(null);
 
-    // Use == for comparison to handle string/number type mismatch from URL params
-    const selectedOption = options.find(opt => opt.id == selectedId);
+    // Find selected course across all categories
+    const selectedCourse = categories
+        .flatMap(cat => cat.courses)
+        .find(c => c.id == selectedId);
 
-    // Filter options based on search query (searches ID, fullname, shortname)
-    const filteredOptions = options.filter(opt =>
-        opt.id.toString().includes(searchQuery) ||
-        opt.fullname.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        opt.shortname.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    // Filter courses based on search
+    const filteredCategories = useMemo(() => {
+        if (!searchQuery) return categories;
+        return categories
+            .map(cat => ({
+                ...cat,
+                courses: cat.courses.filter(course =>
+                    course.id.toString().includes(searchQuery) ||
+                    course.fullname.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    course.shortname.toLowerCase().includes(searchQuery.toLowerCase())
+                )
+            }))
+            .filter(cat => cat.courses.length > 0);
+    }, [categories, searchQuery]);
 
     // Handle click outside to close dropdown
     useEffect(() => {
@@ -77,6 +88,24 @@ function SearchableSelect({ options, selectedId, placeholder, onSelect }: Search
         }
     }, [isOpen]);
 
+    // Expand all when searching
+    useEffect(() => {
+        if (searchQuery) {
+            setExpandedCategories(new Set(filteredCategories.map(c => c.category_id)));
+        }
+    }, [searchQuery, filteredCategories]);
+
+    // Toggle category expansion
+    const toggleCategory = (categoryId: number) => {
+        const newExpanded = new Set(expandedCategories);
+        if (newExpanded.has(categoryId)) {
+            newExpanded.delete(categoryId);
+        } else {
+            newExpanded.add(categoryId);
+        }
+        setExpandedCategories(newExpanded);
+    };
+
     const handleSelect = (id: number) => {
         onSelect(id);
         setIsOpen(false);
@@ -91,8 +120,8 @@ function SearchableSelect({ options, selectedId, placeholder, onSelect }: Search
                 onClick={() => setIsOpen(!isOpen)}
                 className="w-full px-4 py-2.5 text-left bg-white border border-gray-300 rounded-lg flex items-center justify-between hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
-                <span className={selectedOption ? 'text-gray-900' : 'text-gray-500'}>
-                    {selectedOption ? `[${selectedOption.id}] ${selectedOption.fullname}` : placeholder}
+                <span className={selectedCourse ? 'text-gray-900' : 'text-gray-500'}>
+                    {selectedCourse ? `[${selectedCourse.id}] ${selectedCourse.fullname}` : placeholder}
                 </span>
                 <svg
                     className={`w-5 h-5 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
@@ -127,26 +156,48 @@ function SearchableSelect({ options, selectedId, placeholder, onSelect }: Search
                         </div>
                     </div>
 
-                    {/* Options List */}
-                    <div className="max-h-60 overflow-y-auto">
-                        {filteredOptions.length > 0 ? (
-                            filteredOptions.map(option => (
-                                <button
-                                    key={option.id}
-                                    type="button"
-                                    onClick={() => handleSelect(option.id)}
-                                    className={`w-full px-4 py-2.5 text-left text-sm hover:bg-blue-50 flex items-center justify-between ${
-                                        option.id == selectedId ? 'bg-blue-50 text-blue-700' : 'text-gray-700'
-                                    }`}
-                                >
-                                    <div className="flex items-center gap-2 truncate">
-                                        <span className="text-xs text-gray-400 shrink-0">[{option.id}]</span>
-                                        <span className="truncate">{option.fullname}</span>
-                                    </div>
-                                    <span className="text-xs text-gray-400 ml-2 shrink-0">
-                                        {option.enrolled_count} enrolled
-                                    </span>
-                                </button>
+                    {/* Grouped Options List */}
+                    <div className="max-h-80 overflow-y-auto">
+                        {filteredCategories.length > 0 ? (
+                            filteredCategories.map(category => (
+                                <div key={category.category_id}>
+                                    {/* Category header - clickable to expand/collapse */}
+                                    <button
+                                        type="button"
+                                        onClick={() => toggleCategory(category.category_id)}
+                                        className="w-full px-4 py-2 bg-gray-100 font-medium text-sm text-gray-700 flex items-center justify-between hover:bg-gray-200 border-b border-gray-200"
+                                    >
+                                        <span>{category.category_name || 'Uncategorized'}</span>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-xs text-gray-500">{category.courses.length} courses</span>
+                                            <span className="text-gray-400">{expandedCategories.has(category.category_id) ? '−' : '+'}</span>
+                                        </div>
+                                    </button>
+
+                                    {/* Courses in category */}
+                                    {expandedCategories.has(category.category_id) && (
+                                        <div>
+                                            {category.courses.map(course => (
+                                                <button
+                                                    key={course.id}
+                                                    type="button"
+                                                    onClick={() => handleSelect(course.id)}
+                                                    className={`w-full px-6 py-2.5 text-left text-sm hover:bg-blue-50 flex items-center justify-between ${
+                                                        course.id == selectedId ? 'bg-blue-50 text-blue-700' : 'text-gray-700'
+                                                    }`}
+                                                >
+                                                    <div className="flex items-center gap-2 truncate">
+                                                        <span className="text-xs text-gray-400 shrink-0">[{course.id}]</span>
+                                                        <span className="truncate">{course.fullname}</span>
+                                                    </div>
+                                                    <span className="text-xs text-gray-400 ml-2 shrink-0">
+                                                        {course.enrolled_count} enrolled
+                                                    </span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
                             ))
                         ) : (
                             <div className="px-4 py-3 text-sm text-gray-500 text-center">
@@ -645,8 +696,8 @@ export default function CoursesReport({ data, themeConfig }: CoursesReportProps)
                 <div className="flex items-center gap-3">
                     <label className="text-sm font-medium text-gray-700 whitespace-nowrap">Select Course</label>
                     <div className="flex-1 max-w-md">
-                        <SearchableSelect
-                            options={data.courses_list}
+                        <GroupedCourseSelect
+                            categories={data.courses_list}
                             selectedId={data.selected_courseid}
                             placeholder="Select a course..."
                             onSelect={handleCourseSelect}
