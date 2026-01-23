@@ -192,7 +192,8 @@ function CompletionDonut({ rate, label, colorIndex = 0 }: { rate: number; label:
     const strokeWidth = 10;
     const radius = (size - strokeWidth) / 2;
     const circumference = 2 * Math.PI * radius;
-    const progressLength = (rate / 100) * circumference;
+    // Calculate offset: full circumference = 0%, no offset = 100%
+    const offset = circumference - (rate / 100) * circumference;
     const progressColor = DONUT_COLORS[colorIndex % DONUT_COLORS.length];
     const center = size / 2;
 
@@ -219,7 +220,8 @@ function CompletionDonut({ rate, label, colorIndex = 0 }: { rate: number; label:
                             stroke={progressColor}
                             strokeWidth={strokeWidth}
                             strokeLinecap="round"
-                            strokeDasharray={`${progressLength} ${circumference}`}
+                            strokeDasharray={circumference}
+                            strokeDashoffset={offset}
                             transform={`rotate(-90 ${center} ${center})`}
                         />
                     )}
