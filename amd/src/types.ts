@@ -96,6 +96,7 @@ export interface SectionStat {
     section_name: string;
     completion_rate: number;
     average_grade?: number;
+    grademax?: number;
 }
 
 export interface SchoolReport {

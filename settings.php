@@ -155,6 +155,50 @@ if ($hassiteconfig) {
     ));
 
     // =============================================
+    // COURSE REPORT SETTINGS
+    // =============================================
+    $settings->add(new admin_setting_heading(
+        'local_elby_dashboard/reportheading',
+        get_string('reportheading', 'local_elby_dashboard'),
+        get_string('reportheading_desc', 'local_elby_dashboard')
+    ));
+
+    // Enrollment cutoff date (month and day).
+    $settings->add(new admin_setting_configselect(
+        'local_elby_dashboard/enrollment_cutoff_month',
+        get_string('enrollment_cutoff_month', 'local_elby_dashboard'),
+        get_string('enrollment_cutoff_month_desc', 'local_elby_dashboard'),
+        '9', // Default: September
+        [
+            '1' => get_string('january', 'langconfig'),
+            '2' => get_string('february', 'langconfig'),
+            '3' => get_string('march', 'langconfig'),
+            '4' => get_string('april', 'langconfig'),
+            '5' => get_string('may', 'langconfig'),
+            '6' => get_string('june', 'langconfig'),
+            '7' => get_string('july', 'langconfig'),
+            '8' => get_string('august', 'langconfig'),
+            '9' => get_string('september', 'langconfig'),
+            '10' => get_string('october', 'langconfig'),
+            '11' => get_string('november', 'langconfig'),
+            '12' => get_string('december', 'langconfig'),
+        ]
+    ));
+
+    // Enrollment cutoff day.
+    $days = [];
+    for ($i = 1; $i <= 31; $i++) {
+        $days[(string)$i] = (string)$i;
+    }
+    $settings->add(new admin_setting_configselect(
+        'local_elby_dashboard/enrollment_cutoff_day',
+        get_string('enrollment_cutoff_day', 'local_elby_dashboard'),
+        get_string('enrollment_cutoff_day_desc', 'local_elby_dashboard'),
+        '1', // Default: 1st
+        $days
+    ));
+
+    // =============================================
     // MENU CUSTOMIZATION
     // =============================================
     $settings->add(new admin_setting_heading(

@@ -83,7 +83,7 @@ class course_report_helper {
                     $completionData
                 );
 
-                $averageGrade = self::calculate_average_grade(
+                $gradeResult = self::calculate_average_grade(
                     $studentIds,
                     $sectionData['grade_items'],
                     $gradeData
@@ -93,7 +93,8 @@ class course_report_helper {
                     'section_number' => $sectionNum,
                     'section_name' => $sectionData['name'],
                     'completion_rate' => $completionRate,
-                    'average_grade' => $averageGrade,
+                    'average_grade' => $gradeResult['average'],
+                    'grademax' => $gradeResult['grademax'],
                 ];
             }
 
@@ -225,7 +226,7 @@ class course_report_helper {
     }
 
     /**
-     * Get enrolled students with school codes.
+     * Get enrolled students with school codes, filtered by enrollment cutoff date.
      *
      * @param \context $context Course context
      * @param int $courseid Course ID
@@ -239,6 +240,25 @@ class course_report_helper {
             return [];
         }
 
+        // Get enrollment cutoff settings.
+        $cutoffmonth = (int) get_config('local_elby_dashboard', 'enrollment_cutoff_month');
+        $cutoffday = (int) get_config('local_elby_dashboard', 'enrollment_cutoff_day');
+
+        // Default to September 1st if not configured.
+        if ($cutoffmonth < 1 || $cutoffmonth > 12) {
+            $cutoffmonth = 9;
+        }
+        if ($cutoffday < 1 || $cutoffday > 31) {
+            $cutoffday = 1;
+        }
+
+        // Calculate the cutoff timestamp for the current academic year.
+        // If we're before the cutoff month, use last year; otherwise use current year.
+        $currentyear = (int) date('Y');
+        $currentmonth = (int) date('n');
+        $cutoffyear = ($currentmonth < $cutoffmonth) ? $currentyear - 1 : $currentyear;
+        $cutofftimestamp = mktime(0, 0, 0, $cutoffmonth, $cutoffday, $cutoffyear);
+
         $sql = "SELECT DISTINCT u.id, u.firstname, u.lastname, u.schoolcode, u.institution
                 FROM {user} u
                 JOIN {user_enrolments} ue ON ue.userid = u.id
@@ -248,12 +268,14 @@ class course_report_helper {
                   AND u.deleted = 0
                   AND ra.roleid = :roleid
                   AND ra.contextid = :contextid
+                  AND ue.timestart >= :cutofftimestamp
                 ORDER BY u.schoolcode, u.lastname";
 
         return $DB->get_records_sql($sql, [
             'courseid' => $courseid,
             'roleid' => $studentroleid,
             'contextid' => $context->id,
+            'cutofftimestamp' => $cutofftimestamp,
         ]);
     }
 
@@ -289,7 +311,7 @@ class course_report_helper {
      * Get grade data for a course.
      *
      * @param int $courseid Course ID
-     * @return array Grade data indexed by itemid then userid
+     * @return array Grade data indexed by itemid then userid, containing raw grades and grademax
      */
     private static function get_grade_data(int $courseid): array {
         global $DB;
@@ -305,12 +327,13 @@ class course_report_helper {
         $data = [];
         foreach ($records as $record) {
             if (!isset($data[$record->itemid])) {
-                $data[$record->itemid] = [];
+                $data[$record->itemid] = [
+                    'grademax' => $record->grademax,
+                    'grades' => [],
+                ];
             }
-            $percentage = $record->grademax > 0
-                ? ($record->finalgrade / $record->grademax) * 100
-                : 0;
-            $data[$record->itemid][$record->userid] = $percentage;
+            // Store raw grade value.
+            $data[$record->itemid]['grades'][$record->userid] = (float) $record->finalgrade;
         }
 
         return $data;
@@ -356,22 +379,33 @@ class course_report_helper {
      * @param array $studentIds Student IDs
      * @param array $gradeItemIds Grade item IDs
      * @param array $gradeData Grade data
-     * @return float Average grade (0-100)
+     * @return array Average grade and grademax ['average' => float, 'grademax' => float]
      */
     private static function calculate_average_grade(
         array $studentIds,
         array $gradeItemIds,
         array $gradeData
-    ): float {
+    ): array {
         if (empty($studentIds) || empty($gradeItemIds)) {
-            return 0.0;
+            return ['average' => 0.0, 'grademax' => 0.0];
         }
 
         $totalGrades = 0;
         $gradeCount = 0;
+        $maxGrademax = 0;
 
         foreach ($gradeItemIds as $itemId) {
-            $itemGrades = $gradeData[$itemId] ?? [];
+            $itemData = $gradeData[$itemId] ?? null;
+            if (!$itemData) {
+                continue;
+            }
+
+            $itemGrades = $itemData['grades'] ?? [];
+            $grademax = $itemData['grademax'] ?? 0;
+            if ($grademax > $maxGrademax) {
+                $maxGrademax = $grademax;
+            }
+
             foreach ($studentIds as $studentId) {
                 if (isset($itemGrades[$studentId])) {
                     $totalGrades += $itemGrades[$studentId];
@@ -380,8 +414,9 @@ class course_report_helper {
             }
         }
 
-        return $gradeCount > 0
-            ? round($totalGrades / $gradeCount, 1)
-            : 0.0;
+        return [
+            'average' => $gradeCount > 0 ? round($totalGrades / $gradeCount, 1) : 0.0,
+            'grademax' => $maxGrademax,
+        ];
     }
 }

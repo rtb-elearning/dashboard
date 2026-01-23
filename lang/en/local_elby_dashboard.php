@@ -135,6 +135,16 @@ $string['overview'] = 'Overview';
 $string['enrolled_students'] = 'Enrolled Students';
 $string['unit'] = 'Unit';
 
+// =============================================
+// COURSE REPORT SETTINGS
+// =============================================
+$string['reportheading'] = 'Course Report Settings';
+$string['reportheading_desc'] = 'Configure settings for course reports.';
+$string['enrollment_cutoff_month'] = 'Enrollment Cutoff Month';
+$string['enrollment_cutoff_month_desc'] = 'Only include students enrolled on or after this month in the current academic year.';
+$string['enrollment_cutoff_day'] = 'Enrollment Cutoff Day';
+$string['enrollment_cutoff_day_desc'] = 'The day of the month for the enrollment cutoff date.';
+
 // General strings.
 $string['loading'] = 'Loading...';
 $string['error'] = 'An error occurred';

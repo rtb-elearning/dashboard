@@ -21,8 +21,12 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-import { useState, useEffect, useRef } from 'preact/hooks';
+import { useState, useEffect, useRef, useMemo } from 'preact/hooks';
 import type { CoursesReportData, ThemeConfig, CourseReport, SchoolReport, CourseListItem } from '../types';
+
+// Sort configuration type
+type SortColumn = 'school' | 'students' | `avg-${number}` | `cr-${number}`;
+type SortDirection = 'asc' | 'desc';
 
 interface CoursesReportProps {
     data: CoursesReportData;
@@ -158,7 +162,7 @@ function SearchableSelect({ options, selectedId, placeholder, onSelect }: Search
 
 // Donut Chart Component for completion rate
 function CompletionDonut({ rate, label, color }: { rate: number; label: string; color: string }) {
-    const circumference = 2 * Math.PI * 40;
+    const circumference = 2 * Math.PI * 36;
     const strokeDasharray = `${(rate / 100) * circumference} ${circumference}`;
 
     return (
@@ -169,29 +173,28 @@ function CompletionDonut({ rate, label, color }: { rate: number; label: string; 
                     <circle
                         cx="50"
                         cy="50"
-                        r="40"
+                        r="36"
                         fill="none"
                         stroke="#e5e7eb"
-                        strokeWidth="12"
+                        strokeWidth="16"
                     />
                     {/* Progress circle */}
                     <circle
                         cx="50"
                         cy="50"
-                        r="40"
+                        r="36"
                         fill="none"
                         stroke={color}
-                        strokeWidth="12"
+                        strokeWidth="16"
                         strokeDasharray={strokeDasharray}
                         strokeLinecap="round"
                     />
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-sm font-bold text-gray-800">{rate.toFixed(1)}%</span>
-                    <span className="text-xs text-gray-500">CR</span>
+                    <span className="text-lg font-bold text-gray-800">{rate.toFixed(0)}%</span>
                 </div>
             </div>
-            <span className="text-xs text-gray-600 mt-2 text-center">{label}</span>
+            <span className="text-xs text-gray-600 mt-2 text-center font-medium">{label}</span>
         </div>
     );
 }
@@ -208,58 +211,85 @@ function SchoolBarChart({ schools, sectionIndex, themeConfig }: {
     sectionIndex: number;
     themeConfig: ThemeConfig;
 }) {
+    // Get grademax from first school's section data for percentage conversion
+    const grademax = schools[0]?.sections[sectionIndex]?.grademax || 100;
+
     return (
         <div className="bg-white rounded-xl p-6 shadow-sm overflow-visible">
             <div className="flex items-center gap-4 mb-6">
                 <div className="flex items-center gap-2">
                     <span className="w-3 h-3 rounded-full" style={{ backgroundColor: themeConfig.chartPrimaryColor }}></span>
-                    <span className="text-sm text-gray-600">Average</span>
+                    <span className="text-sm text-gray-600">Average Score</span>
                 </div>
                 <div className="flex items-center gap-2">
                     <span className="w-3 h-3 rounded-full" style={{ backgroundColor: themeConfig.chartSecondaryColor }}></span>
                     <span className="text-sm text-gray-600">Completion Rate</span>
                 </div>
             </div>
-            <div className="flex items-end gap-8 overflow-x-auto">
-                {schools.slice(0, 15).map((school, idx) => {
-                    const section = school.sections[sectionIndex];
-                    const avgHeight = section ? (section.average_grade || 0) : 0;
-                    const crHeight = section ? section.completion_rate : 0;
-                    const fullName = String(school.school_name || '-');
-                    const displayName = truncateText(fullName, 20);
+            <div className="flex">
+                {/* Left Y-axis for Average Score */}
+                <div className="flex flex-col justify-between h-48 pr-2 text-xs text-gray-500 shrink-0">
+                    <span>{grademax}</span>
+                    <span>{(grademax * 0.75).toFixed(grademax >= 10 ? 0 : 1)}</span>
+                    <span>{(grademax * 0.5).toFixed(grademax >= 10 ? 0 : 1)}</span>
+                    <span>{(grademax * 0.25).toFixed(grademax >= 10 ? 0 : 1)}</span>
+                    <span>0</span>
+                </div>
+                {/* Chart bars */}
+                <div className="flex-1 overflow-x-auto">
+                    <div className="flex items-end gap-8">
+                        {schools.slice(0, 15).map((school, idx) => {
+                            const section = school.sections[sectionIndex];
+                            const avgValue = section?.average_grade || 0;
+                            const sectionGrademax = section?.grademax || grademax;
+                            // Convert raw score to percentage for bar height
+                            const avgHeight = sectionGrademax > 0 ? (avgValue / sectionGrademax) * 100 : 0;
+                            const crHeight = section ? section.completion_rate : 0;
+                            const fullName = String(school.school_name || '-');
+                            const displayName = truncateText(fullName, 20);
 
-                    return (
-                        <div key={school.school_code || `school-${idx}`} className="flex flex-col items-center min-w-[50px]">
-                            <div className="flex gap-1 items-end h-48">
-                                <div
-                                    className="w-5 rounded-t-sm cursor-pointer"
-                                    style={{
-                                        height: `${avgHeight}%`,
-                                        backgroundColor: themeConfig.chartPrimaryColor,
-                                    }}
-                                    title={`${fullName}\nAvg: ${avgHeight.toFixed(1)}%`}
-                                />
-                                <div
-                                    className="w-5 rounded-t-sm cursor-pointer"
-                                    style={{
-                                        height: `${crHeight}%`,
-                                        backgroundColor: themeConfig.chartSecondaryColor,
-                                    }}
-                                    title={`${fullName}\nCR: ${crHeight.toFixed(1)}%`}
-                                />
-                            </div>
-                            <div className="h-32 flex items-start justify-center mt-2">
-                                <span
-                                    className="text-[11px] text-gray-600 whitespace-nowrap cursor-default origin-top"
-                                    style={{ transform: 'rotate(45deg)' }}
-                                    title={fullName}
-                                >
-                                    {displayName}
-                                </span>
-                            </div>
-                        </div>
-                    );
-                })}
+                            return (
+                                <div key={school.school_code || `school-${idx}`} className="flex flex-col items-center min-w-[50px]">
+                                    <div className="flex gap-1 items-end h-48">
+                                        <div
+                                            className="w-5 rounded-t-sm cursor-pointer"
+                                            style={{
+                                                height: `${avgHeight}%`,
+                                                backgroundColor: themeConfig.chartPrimaryColor,
+                                            }}
+                                            title={`${fullName}\nAvg: ${avgValue.toFixed(1)}/${sectionGrademax}`}
+                                        />
+                                        <div
+                                            className="w-5 rounded-t-sm cursor-pointer"
+                                            style={{
+                                                height: `${crHeight}%`,
+                                                backgroundColor: themeConfig.chartSecondaryColor,
+                                            }}
+                                            title={`${fullName}\nCR: ${crHeight.toFixed(1)}%`}
+                                        />
+                                    </div>
+                                    <div className="h-32 flex items-start justify-center mt-2">
+                                        <span
+                                            className="text-[11px] text-gray-600 whitespace-nowrap cursor-default origin-top"
+                                            style={{ transform: 'rotate(45deg)' }}
+                                            title={fullName}
+                                        >
+                                            {displayName}
+                                        </span>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+                {/* Right Y-axis for Completion Rate */}
+                <div className="flex flex-col justify-between h-48 pl-2 text-xs text-gray-500 shrink-0">
+                    <span>100%</span>
+                    <span>75%</span>
+                    <span>50%</span>
+                    <span>25%</span>
+                    <span>0%</span>
+                </div>
             </div>
         </div>
     );
@@ -340,43 +370,162 @@ function ScatterPlot({ schools, sectionIndex, themeConfig }: {
     );
 }
 
+// Sort indicator component
+function SortIndicator({ column, sortColumn, sortDirection }: {
+    column: SortColumn;
+    sortColumn: SortColumn | null;
+    sortDirection: SortDirection;
+}) {
+    const isActive = sortColumn === column;
+    return (
+        <span className={`ml-1 inline-flex ${isActive ? 'text-blue-600' : 'text-gray-400'}`}>
+            {isActive && sortDirection === 'asc' ? '↑' : isActive && sortDirection === 'desc' ? '↓' : '↕'}
+        </span>
+    );
+}
+
+// Sortable header component
+function SortableHeader({ children, column, sortColumn, sortDirection, onSort, className }: {
+    children: React.ReactNode;
+    column: SortColumn;
+    sortColumn: SortColumn | null;
+    sortDirection: SortDirection;
+    onSort: (column: SortColumn) => void;
+    className?: string;
+}) {
+    return (
+        <th
+            className={`${className} cursor-pointer hover:bg-gray-100 select-none`}
+            onClick={() => onSort(column)}
+        >
+            <div className="flex items-center justify-center">
+                {children}
+                <SortIndicator column={column} sortColumn={sortColumn} sortDirection={sortDirection} />
+            </div>
+        </th>
+    );
+}
+
 // Report Table Component
 function ReportTable({ report, themeConfig }: { report: CourseReport; themeConfig: ThemeConfig }) {
-    const numSections = report.overview_sections.length;
+    const [sortColumn, setSortColumn] = useState<SortColumn | null>(null);
+    const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+
+    const handleSort = (column: SortColumn) => {
+        if (sortColumn === column) {
+            setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortColumn(column);
+            setSortDirection('desc');
+        }
+    };
+
+    const sortedSchools = useMemo(() => {
+        if (!sortColumn) return report.schools;
+
+        return [...report.schools].sort((a, b) => {
+            let aVal: number | string = 0;
+            let bVal: number | string = 0;
+
+            if (sortColumn === 'school') {
+                aVal = a.school_name || '';
+                bVal = b.school_name || '';
+                return sortDirection === 'asc'
+                    ? String(aVal).localeCompare(String(bVal))
+                    : String(bVal).localeCompare(String(aVal));
+            } else if (sortColumn === 'students') {
+                aVal = a.student_count;
+                bVal = b.student_count;
+            } else if (sortColumn.startsWith('avg-')) {
+                const idx = parseInt(sortColumn.replace('avg-', ''));
+                aVal = a.sections[idx]?.average_grade || 0;
+                bVal = b.sections[idx]?.average_grade || 0;
+            } else if (sortColumn.startsWith('cr-')) {
+                const idx = parseInt(sortColumn.replace('cr-', ''));
+                aVal = a.sections[idx]?.completion_rate || 0;
+                bVal = b.sections[idx]?.completion_rate || 0;
+            }
+
+            return sortDirection === 'asc'
+                ? (aVal as number) - (bVal as number)
+                : (bVal as number) - (aVal as number);
+        });
+    }, [report.schools, sortColumn, sortDirection]);
 
     return (
         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
+            {/* Legend */}
+            <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
+                <span className="text-sm text-gray-600">
+                    <span className="font-medium">Legend:</span> U = Unit, Avg = Average score, CR = Completion rate
+                    <span className="ml-4 text-gray-400">(Click column headers to sort)</span>
+                </span>
+            </div>
+            <div className="overflow-auto max-h-[600px]">
                 <table className="w-full text-sm">
-                    <thead>
+                    <thead className="sticky top-0 z-20">
                         <tr className="bg-gray-50">
-                            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 sticky left-0 bg-gray-50">#</th>
-                            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 sticky left-8 bg-gray-50">School</th>
-                            <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600">Students</th>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 sticky left-0 z-30 bg-gray-50">#</th>
+                            <SortableHeader
+                                column="school"
+                                sortColumn={sortColumn}
+                                sortDirection={sortDirection}
+                                onSort={handleSort}
+                                className="px-3 py-2 text-left text-xs font-semibold text-gray-600 sticky left-8 z-30 bg-gray-50 min-w-[200px]"
+                            >
+                                School
+                            </SortableHeader>
+                            <SortableHeader
+                                column="students"
+                                sortColumn={sortColumn}
+                                sortDirection={sortDirection}
+                                onSort={handleSort}
+                                className="px-3 py-2 text-center text-xs font-semibold text-gray-600 bg-gray-50"
+                            >
+                                Enrolled students
+                            </SortableHeader>
                             {report.overview_sections.map((section, idx) => (
                                 <>
-                                    <th key={`avg-${idx}`} className="px-2 py-2 text-center text-xs font-semibold text-gray-600">
+                                    <SortableHeader
+                                        key={`avg-${idx}`}
+                                        column={`avg-${idx}` as SortColumn}
+                                        sortColumn={sortColumn}
+                                        sortDirection={sortDirection}
+                                        onSort={handleSort}
+                                        className="px-2 py-2 text-center text-xs font-semibold text-gray-600 bg-gray-50"
+                                    >
                                         U{section.section_number} Avg
-                                    </th>
-                                    <th key={`cr-${idx}`} className="px-2 py-2 text-center text-xs font-semibold text-gray-600">
+                                    </SortableHeader>
+                                    <SortableHeader
+                                        key={`cr-${idx}`}
+                                        column={`cr-${idx}` as SortColumn}
+                                        sortColumn={sortColumn}
+                                        sortDirection={sortDirection}
+                                        onSort={handleSort}
+                                        className="px-2 py-2 text-center text-xs font-semibold text-gray-600 bg-gray-50"
+                                    >
                                         U{section.section_number} CR
-                                    </th>
+                                    </SortableHeader>
                                 </>
                             ))}
                         </tr>
                     </thead>
                     <tbody>
-                        {report.schools.map((school, idx) => (
-                            <tr key={school.school_code || `row-${idx}`} className="border-t border-gray-100 hover:bg-gray-50">
-                                <td className="px-3 py-2 text-gray-500 sticky left-0 bg-white">{idx + 1}</td>
-                                <td className="px-3 py-2 font-medium text-gray-800 sticky left-8 bg-white">
+                        {sortedSchools.map((school, idx) => (
+                            <tr key={school.school_code || `row-${idx}`} className="border-t border-gray-100 hover:bg-gray-50 group">
+                                <td className="px-3 py-2 text-gray-500 sticky left-0 z-10 bg-white group-hover:bg-gray-50">{idx + 1}</td>
+                                <td className="px-3 py-2 font-medium text-gray-800 sticky left-8 z-10 bg-white group-hover:bg-gray-50 min-w-[200px]">
                                     {school.school_name}
                                 </td>
                                 <td className="px-3 py-2 text-center text-gray-600">{school.student_count}</td>
                                 {school.sections.map((section, sIdx) => (
                                     <>
                                         <td key={`avg-${sIdx}`} className="px-2 py-2 text-center text-gray-600">
-                                            {section.average_grade?.toFixed(1) || '-'}
+                                            {section.average_grade
+                                                ? section.grademax
+                                                    ? `${section.average_grade.toFixed(1)}/${section.grademax}`
+                                                    : section.average_grade.toFixed(1)
+                                                : '-'}
                                         </td>
                                         <td key={`cr-${sIdx}`} className="px-2 py-2 text-center text-gray-600">
                                             {section.completion_rate.toFixed(1)}%
@@ -387,8 +536,8 @@ function ReportTable({ report, themeConfig }: { report: CourseReport; themeConfi
                         ))}
                         {/* Grand Total Row */}
                         <tr className="border-t-2 border-gray-300 bg-gray-50 font-semibold">
-                            <td className="px-3 py-2 sticky left-0 bg-gray-50"></td>
-                            <td className="px-3 py-2 sticky left-8 bg-gray-50">Grand Total</td>
+                            <td className="px-3 py-2 sticky left-0 z-10 bg-gray-50"></td>
+                            <td className="px-3 py-2 sticky left-8 z-10 bg-gray-50 min-w-[200px]">Grand Total</td>
                             <td className="px-3 py-2 text-center">{report.total_enrolled}</td>
                             {report.overview_sections.map((section, idx) => {
                                 // Calculate averages
@@ -398,11 +547,17 @@ function ReportTable({ report, themeConfig }: { report: CourseReport; themeConfi
                                 const avgGrade = avgGrades.length > 0
                                     ? avgGrades.reduce((a, b) => a + b!, 0) / avgGrades.length
                                     : 0;
+                                // Get grademax from first school's section data
+                                const grademax = report.schools[0]?.sections[idx]?.grademax;
 
                                 return (
                                     <>
                                         <td key={`avg-${idx}`} className="px-2 py-2 text-center">
-                                            {avgGrade > 0 ? avgGrade.toFixed(1) : '-'}
+                                            {avgGrade > 0
+                                                ? grademax
+                                                    ? `${avgGrade.toFixed(1)}/${grademax}`
+                                                    : avgGrade.toFixed(1)
+                                                : '-'}
                                         </td>
                                         <td key={`cr-${idx}`} className="px-2 py-2 text-center">
                                             {section.completion_rate.toFixed(1)}%
