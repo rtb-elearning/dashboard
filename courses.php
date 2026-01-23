@@ -30,6 +30,10 @@ use local_elby_dashboard\course_report_helper;
 // Get optional course ID parameter.
 $courseid = optional_param('courseid', 0, PARAM_INT);
 
+// Get optional academic year parameter.
+// Academic year is represented by the start year (e.g., 2024 for 2024-2025 academic year).
+$academicyear = optional_param('year', 0, PARAM_INT);
+
 // Require login.
 require_login();
 
@@ -40,7 +44,11 @@ $PAGE->set_context($context);
 // Check capability.
 require_capability('local/elby_dashboard:viewreports', $context);
 
-$PAGE->set_url(new moodle_url('/local/elby_dashboard/courses.php', ['courseid' => $courseid]));
+$urlparams = ['courseid' => $courseid];
+if ($academicyear > 0) {
+    $urlparams['year'] = $academicyear;
+}
+$PAGE->set_url(new moodle_url('/local/elby_dashboard/courses.php', $urlparams));
 $PAGE->set_pagelayout('standard');
 $PAGE->set_title(get_string('page_title', 'local_elby_dashboard') . ' - ' . get_string('courses_report', 'local_elby_dashboard'));
 $PAGE->set_heading(get_string('page_heading', 'local_elby_dashboard'));
@@ -130,11 +138,34 @@ $userdata = [
 // Get list of courses.
 $coursesList = course_report_helper::get_courses_list();
 
+// Calculate available academic years (last 5 years).
+$currentyear = (int) date('Y');
+$currentmonth = (int) date('n');
+$cutoffmonth = (int) get_config('local_elby_dashboard', 'enrollment_cutoff_month') ?: 9;
+
+// Determine current academic year based on cutoff month.
+$currentacademicyear = ($currentmonth < $cutoffmonth) ? $currentyear - 1 : $currentyear;
+
+// Generate list of available academic years (current + 4 previous).
+$availableyears = [];
+for ($i = 0; $i < 5; $i++) {
+    $startyear = $currentacademicyear - $i;
+    $availableyears[] = [
+        'value' => $startyear,
+        'label' => $startyear . '-' . ($startyear + 1),
+    ];
+}
+
+// Default to current academic year if not specified.
+if ($academicyear <= 0) {
+    $academicyear = $currentacademicyear;
+}
+
 // Get course report if a course is selected.
 $courseReport = null;
 if ($courseid > 0) {
     try {
-        $courseReport = course_report_helper::get_course_report($courseid);
+        $courseReport = course_report_helper::get_course_report($courseid, $academicyear);
     } catch (Exception $e) {
         // Handle error gracefully.
         debugging('Error fetching course report: ' . $e->getMessage(), DEBUG_DEVELOPER);
@@ -154,6 +185,8 @@ $coursesReportData = [
     'courses_list' => $coursesList,
     'selected_courseid' => $courseid,
     'course_report' => $courseReport,
+    'available_years' => $availableyears,
+    'selected_year' => $academicyear,
 ];
 
 // Prepare data for template.

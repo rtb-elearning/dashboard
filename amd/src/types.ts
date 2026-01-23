@@ -122,8 +122,15 @@ export interface CourseReport {
     schools: SchoolReport[];
 }
 
+export interface AcademicYear {
+    value: number;      // Start year (e.g., 2024)
+    label: string;      // Display format (e.g., "2024-2025")
+}
+
 export interface CoursesReportData {
     courses_list: CourseListItem[];
     selected_courseid: number;
     course_report: CourseReport | null;
+    available_years: AcademicYear[];
+    selected_year: number;
 }

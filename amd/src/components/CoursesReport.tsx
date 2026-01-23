@@ -160,6 +160,29 @@ function SearchableSelect({ options, selectedId, placeholder, onSelect }: Search
     );
 }
 
+// Year Select Component
+interface YearSelectProps {
+    years: { value: number; label: string }[];
+    selectedYear: number;
+    onSelect: (year: number) => void;
+}
+
+function YearSelect({ years, selectedYear, onSelect }: YearSelectProps) {
+    return (
+        <select
+            value={selectedYear}
+            onChange={(e) => onSelect(parseInt((e.target as HTMLSelectElement).value))}
+            className="px-4 py-2.5 bg-white border border-gray-300 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        >
+            {years.map(year => (
+                <option key={year.value} value={year.value}>
+                    {year.label}
+                </option>
+            ))}
+        </select>
+    );
+}
+
 // Donut Chart Component for completion rate
 function CompletionDonut({ rate, label, color }: { rate: number; label: string; color: string }) {
     const circumference = 2 * Math.PI * 36;
@@ -575,20 +598,47 @@ function ReportTable({ report, themeConfig }: { report: CourseReport; themeConfi
 
 export default function CoursesReport({ data, themeConfig }: CoursesReportProps) {
     const handleCourseSelect = (courseid: number) => {
-        window.location.href = `/local/elby_dashboard/courses.php?courseid=${courseid}`;
+        const params = new URLSearchParams();
+        params.set('courseid', String(courseid));
+        if (data.selected_year) {
+            params.set('year', String(data.selected_year));
+        }
+        window.location.href = `/local/elby_dashboard/courses.php?${params.toString()}`;
+    };
+
+    const handleYearSelect = (year: number) => {
+        const params = new URLSearchParams();
+        if (data.selected_courseid) {
+            params.set('courseid', String(data.selected_courseid));
+        }
+        params.set('year', String(year));
+        window.location.href = `/local/elby_dashboard/courses.php?${params.toString()}`;
     };
 
     return (
         <div className="p-2 sm:p-4 lg:p-6 bg-gray-50 min-h-screen">
-            {/* Course Selector */}
-            <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Select Course</label>
-                <SearchableSelect
-                    options={data.courses_list}
-                    selectedId={data.selected_courseid}
-                    placeholder="Select a course..."
-                    onSelect={handleCourseSelect}
-                />
+            {/* Selectors Row */}
+            <div className="mb-6 flex flex-col sm:flex-row gap-4">
+                {/* Year Selector */}
+                <div className="w-full sm:w-auto">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Academic Year</label>
+                    <YearSelect
+                        years={data.available_years}
+                        selectedYear={data.selected_year}
+                        onSelect={handleYearSelect}
+                    />
+                </div>
+
+                {/* Course Selector */}
+                <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Select Course</label>
+                    <SearchableSelect
+                        options={data.courses_list}
+                        selectedId={data.selected_courseid}
+                        placeholder="Select a course..."
+                        onSelect={handleCourseSelect}
+                    />
+                </div>
             </div>
 
             {data.course_report ? (

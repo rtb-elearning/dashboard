@@ -38,9 +38,10 @@ class course_report_helper {
      * Get course report data for a specific course grouped by school code.
      *
      * @param int $courseid Course ID
+     * @param int $academicyear Academic year start (e.g., 2024 for 2024-2025). If 0, uses current year.
      * @return array Course report data
      */
-    public static function get_course_report(int $courseid): array {
+    public static function get_course_report(int $courseid, int $academicyear = 0): array {
         global $DB;
 
         $course = get_course($courseid);
@@ -51,7 +52,7 @@ class course_report_helper {
         $sections = self::get_course_sections($modinfo, $courseid);
 
         // Get enrolled students with school codes.
-        $students = self::get_enrolled_students($context, $courseid);
+        $students = self::get_enrolled_students($context, $courseid, $academicyear)
 
         // Group by school.
         $studentsBySchool = [];
@@ -230,9 +231,10 @@ class course_report_helper {
      *
      * @param \context $context Course context
      * @param int $courseid Course ID
+     * @param int $academicyear Academic year start (e.g., 2024 for 2024-2025). If 0, uses current year.
      * @return array Student records
      */
-    private static function get_enrolled_students(\context $context, int $courseid): array {
+    private static function get_enrolled_students(\context $context, int $courseid, int $academicyear = 0): array {
         global $DB;
 
         $studentroleid = $DB->get_field('role', 'id', ['shortname' => 'student']);
@@ -252,12 +254,16 @@ class course_report_helper {
             $cutoffday = 1;
         }
 
-        // Calculate the cutoff timestamp for the current academic year.
-        // If we're before the cutoff month, use last year; otherwise use current year.
-        $currentyear = (int) date('Y');
-        $currentmonth = (int) date('n');
-        $cutoffyear = ($currentmonth < $cutoffmonth) ? $currentyear - 1 : $currentyear;
-        $cutofftimestamp = mktime(0, 0, 0, $cutoffmonth, $cutoffday, $cutoffyear);
+        // Use provided academic year or calculate current one.
+        if ($academicyear <= 0) {
+            $currentyear = (int) date('Y');
+            $currentmonth = (int) date('n');
+            $academicyear = ($currentmonth < $cutoffmonth) ? $currentyear - 1 : $currentyear;
+        }
+
+        // Calculate cutoff timestamps for the academic year range.
+        $cutoffstart = mktime(0, 0, 0, $cutoffmonth, $cutoffday, $academicyear);
+        $cutoffend = mktime(0, 0, 0, $cutoffmonth, $cutoffday, $academicyear + 1);
 
         $sql = "SELECT DISTINCT u.id, u.firstname, u.lastname, u.schoolcode, u.institution
                 FROM {user} u
@@ -268,14 +274,16 @@ class course_report_helper {
                   AND u.deleted = 0
                   AND ra.roleid = :roleid
                   AND ra.contextid = :contextid
-                  AND ue.timestart >= :cutofftimestamp
+                  AND ue.timestart >= :cutoffstart
+                  AND ue.timestart < :cutoffend
                 ORDER BY u.schoolcode, u.lastname";
 
         return $DB->get_records_sql($sql, [
             'courseid' => $courseid,
             'roleid' => $studentroleid,
             'contextid' => $context->id,
-            'cutofftimestamp' => $cutofftimestamp,
+            'cutoffstart' => $cutoffstart,
+            'cutoffend' => $cutoffend,
         ]);
     }
 
