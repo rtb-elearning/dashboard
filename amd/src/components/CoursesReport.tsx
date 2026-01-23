@@ -185,36 +185,38 @@ function YearSelect({ years, selectedYear, onSelect }: YearSelectProps) {
 
 // Donut Chart Component for completion rate
 function CompletionDonut({ rate, label, color }: { rate: number; label: string; color: string }) {
-    const circumference = 2 * Math.PI * 36;
+    const radius = 42;
+    const strokeWidth = 8;
+    const circumference = 2 * Math.PI * radius;
     const strokeDasharray = `${(rate / 100) * circumference} ${circumference}`;
 
     return (
         <div className="flex flex-col items-center">
-            <div className="relative w-24 h-24">
+            <div className="relative w-28 h-28">
                 <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
                     {/* Background circle */}
                     <circle
                         cx="50"
                         cy="50"
-                        r="36"
+                        r={radius}
                         fill="none"
-                        stroke="#e5e7eb"
-                        strokeWidth="16"
+                        stroke="#e8e8e8"
+                        strokeWidth={strokeWidth}
                     />
                     {/* Progress circle */}
                     <circle
                         cx="50"
                         cy="50"
-                        r="36"
+                        r={radius}
                         fill="none"
                         stroke={color}
-                        strokeWidth="16"
+                        strokeWidth={strokeWidth}
                         strokeDasharray={strokeDasharray}
                         strokeLinecap="round"
                     />
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-lg font-bold text-gray-800">{rate.toFixed(0)}%</span>
+                    <span className="text-xl font-medium text-gray-500">{rate.toFixed(0)}%</span>
                 </div>
             </div>
             <span className="text-xs text-gray-600 mt-2 text-center font-medium">{label}</span>
