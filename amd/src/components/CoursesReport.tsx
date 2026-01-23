@@ -183,12 +183,16 @@ function YearSelect({ years, selectedYear, onSelect }: YearSelectProps) {
     );
 }
 
+// Color palette for donut charts (orange, green, blue, purple, teal)
+const DONUT_COLORS = ['#F5A623', '#4CAF50', '#2196F3', '#9C27B0', '#00BCD4'];
+
 // Donut Chart Component for completion rate
-function CompletionDonut({ rate, label, color }: { rate: number; label: string; color: string }) {
+function CompletionDonut({ rate, label, colorIndex = 0 }: { rate: number; label: string; color?: string; colorIndex?: number }) {
     const radius = 42;
-    const strokeWidth = 8;
+    const strokeWidth = 6;
     const circumference = 2 * Math.PI * radius;
     const strokeDasharray = `${(rate / 100) * circumference} ${circumference}`;
+    const progressColor = DONUT_COLORS[colorIndex % DONUT_COLORS.length];
 
     return (
         <div className="flex flex-col items-center">
@@ -200,7 +204,7 @@ function CompletionDonut({ rate, label, color }: { rate: number; label: string; 
                         cy="50"
                         r={radius}
                         fill="none"
-                        stroke="#e8e8e8"
+                        stroke="#e0e0e0"
                         strokeWidth={strokeWidth}
                     />
                     {/* Progress circle */}
@@ -209,7 +213,7 @@ function CompletionDonut({ rate, label, color }: { rate: number; label: string; 
                         cy="50"
                         r={radius}
                         fill="none"
-                        stroke={color}
+                        stroke={progressColor}
                         strokeWidth={strokeWidth}
                         strokeDasharray={strokeDasharray}
                         strokeLinecap="round"
@@ -219,7 +223,7 @@ function CompletionDonut({ rate, label, color }: { rate: number; label: string; 
                     <span className="text-xl font-medium text-gray-500">{rate.toFixed(0)}%</span>
                 </div>
             </div>
-            <span className="text-xs text-gray-600 mt-2 text-center font-medium">{label}</span>
+            <span className="text-xs text-gray-600 mt-2 text-center font-medium max-w-[120px]">{label}</span>
         </div>
     );
 }
@@ -671,7 +675,7 @@ export default function CoursesReport({ data, themeConfig }: CoursesReportProps)
                                         key={section.section_number}
                                         rate={section.completion_rate}
                                         label={section.section_name}
-                                        color={themeConfig.chartPrimaryColor}
+                                        colorIndex={idx}
                                     />
                                 ))}
                             </div>
