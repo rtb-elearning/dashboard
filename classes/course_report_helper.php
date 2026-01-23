@@ -93,9 +93,9 @@ class course_report_helper {
                 $sectionStats[] = [
                     'section_number' => $sectionNum,
                     'section_name' => $sectionData['name'],
-                    'completion_rate' => $completionRate,
-                    'average_grade' => $gradeResult['average'],
-                    'grademax' => $gradeResult['grademax'],
+                    'completion_rate' => round($completionRate, 1),
+                    'average_grade' => round($gradeResult['average'], 1),
+                    'grademax' => round($gradeResult['grademax'], 1),
                 ];
             }
 
@@ -125,7 +125,7 @@ class course_report_helper {
             $overviewSections[] = [
                 'section_number' => $sectionNum,
                 'section_name' => $sectionData['name'],
-                'completion_rate' => $completionRate,
+                'completion_rate' => round($completionRate, 1),
             ];
         }
 
@@ -476,7 +476,7 @@ class course_report_helper {
 
         return [
             'average' => $gradeCount > 0 ? round($totalGrades / $gradeCount, 1) : 0.0,
-            'grademax' => $maxGrademax,
+            'grademax' => round($maxGrademax, 1),
         ];
     }
 }
