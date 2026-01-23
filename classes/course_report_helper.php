@@ -52,7 +52,7 @@ class course_report_helper {
         $sections = self::get_course_sections($modinfo, $courseid);
 
         // Get enrolled students with school codes.
-        $students = self::get_enrolled_students($context, $courseid, $academicyear)
+        $students = self::get_enrolled_students($context, $courseid, $academicyear);
 
         // Group by school.
         $studentsBySchool = [];
