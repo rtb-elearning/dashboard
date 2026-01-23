@@ -617,11 +617,11 @@ export default function CoursesReport({ data, themeConfig }: CoursesReportProps)
 
     return (
         <div className="p-2 sm:p-4 lg:p-6 bg-gray-50 min-h-screen">
-            {/* Selectors Row */}
-            <div className="mb-6 flex flex-col sm:flex-row gap-4">
+            {/* Selectors */}
+            <div className="mb-6 space-y-3">
                 {/* Year Selector */}
-                <div className="w-full sm:w-auto">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Academic Year</label>
+                <div className="flex items-center gap-3">
+                    <label className="text-sm font-medium text-gray-700 whitespace-nowrap">Academic Year</label>
                     <YearSelect
                         years={data.available_years}
                         selectedYear={data.selected_year}
@@ -630,14 +630,16 @@ export default function CoursesReport({ data, themeConfig }: CoursesReportProps)
                 </div>
 
                 {/* Course Selector */}
-                <div className="flex-1">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Select Course</label>
-                    <SearchableSelect
-                        options={data.courses_list}
-                        selectedId={data.selected_courseid}
-                        placeholder="Select a course..."
-                        onSelect={handleCourseSelect}
-                    />
+                <div className="flex items-center gap-3">
+                    <label className="text-sm font-medium text-gray-700 whitespace-nowrap">Select Course</label>
+                    <div className="flex-1 max-w-md">
+                        <SearchableSelect
+                            options={data.courses_list}
+                            selectedId={data.selected_courseid}
+                            placeholder="Select a course..."
+                            onSelect={handleCourseSelect}
+                        />
+                    </div>
                 </div>
             </div>
 
