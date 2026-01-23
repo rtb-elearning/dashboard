@@ -666,7 +666,7 @@ export default function CoursesReport({ data, themeConfig }: CoursesReportProps)
                     <div className="mb-6">
                         <h2 className="text-lg font-semibold text-gray-800 mb-4">Overview</h2>
                         <div className="bg-white rounded-xl p-6 shadow-sm">
-                            <div className="flex flex-wrap items-center gap-8">
+                            <div className="flex flex-wrap items-start gap-8">
                                 {/* Enrolled Students */}
                                 <div className="flex flex-col items-center">
                                     <span className="text-3xl font-bold text-gray-800">
