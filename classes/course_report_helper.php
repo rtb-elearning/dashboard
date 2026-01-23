@@ -176,15 +176,25 @@ class course_report_helper {
             ];
         }
 
-        // Fetch category names.
-        $categoryids = array_keys($grouped);
-        if (!empty($categoryids)) {
-            list($insql, $params) = $DB->get_in_or_equal($categoryids);
-            $categories = $DB->get_records_select('course_categories', "id $insql", $params);
-            foreach ($categories as $cat) {
-                if (isset($grouped[$cat->id])) {
-                    $grouped[$cat->id]['category_name'] = $cat->name;
+        // Fetch all categories for building full paths.
+        $allcategories = $DB->get_records('course_categories', null, '', 'id, name, path');
+        $categorynames = [];
+        foreach ($allcategories as $cat) {
+            $categorynames[$cat->id] = $cat->name;
+        }
+
+        // Build full category paths.
+        foreach ($allcategories as $cat) {
+            if (isset($grouped[$cat->id])) {
+                // Build full path from path field (e.g., "/1/2/3").
+                $pathids = array_filter(explode('/', $cat->path));
+                $pathnames = [];
+                foreach ($pathids as $pathid) {
+                    if (isset($categorynames[$pathid])) {
+                        $pathnames[] = $categorynames[$pathid];
+                    }
                 }
+                $grouped[$cat->id]['category_name'] = implode(' > ', $pathnames);
             }
         }
 
