@@ -141,13 +141,17 @@ class course_report_helper {
     }
 
     /**
-     * Get list of all courses grouped by category.
+     * Get list of all courses as a nested tree structure by category hierarchy.
      *
-     * @return array List of courses grouped by category
+     * @return array Nested tree of categories with courses
      */
     public static function get_courses_list(): array {
         global $DB;
 
+        // Fetch all categories.
+        $allcategories = $DB->get_records('course_categories', null, 'sortorder', 'id, name, parent, path');
+
+        // Fetch courses.
         $courses = $DB->get_records_select(
             'course',
             'id > 1',
@@ -156,19 +160,15 @@ class course_report_helper {
             'id, shortname, fullname, category'
         );
 
-        // Group by category.
-        $grouped = [];
+        // Build courses lookup by category.
+        $coursesbycategory = [];
         foreach ($courses as $course) {
             $catid = $course->category;
-            if (!isset($grouped[$catid])) {
-                $grouped[$catid] = [
-                    'category_id' => $catid,
-                    'category_name' => '',
-                    'courses' => [],
-                ];
+            if (!isset($coursesbycategory[$catid])) {
+                $coursesbycategory[$catid] = [];
             }
             $context = context_course::instance($course->id);
-            $grouped[$catid]['courses'][] = [
+            $coursesbycategory[$catid][] = [
                 'id' => $course->id,
                 'shortname' => $course->shortname,
                 'fullname' => $course->fullname,
@@ -176,31 +176,52 @@ class course_report_helper {
             ];
         }
 
-        // Fetch all categories for building full paths.
-        $allcategories = $DB->get_records('course_categories', null, '', 'id, name, path');
-        $categorynames = [];
+        // Build nested tree structure.
+        $tree = [];
+        $categorybyid = [];
+
+        // First pass: create all category nodes.
         foreach ($allcategories as $cat) {
-            $categorynames[$cat->id] = $cat->name;
+            $categorybyid[$cat->id] = [
+                'id' => (int) $cat->id,
+                'name' => $cat->name,
+                'parent' => (int) $cat->parent,
+                'children' => [],
+                'courses' => $coursesbycategory[$cat->id] ?? [],
+            ];
         }
 
-        // Build full category paths.
-        foreach ($allcategories as $cat) {
-            if (isset($grouped[$cat->id])) {
-                // Build full path from path field (e.g., "/1/2/3").
-                $pathids = array_filter(explode('/', $cat->path));
-                $pathnames = [];
-                foreach ($pathids as $pathid) {
-                    if (isset($categorynames[$pathid])) {
-                        $pathnames[] = $categorynames[$pathid];
-                    }
-                }
-                $grouped[$cat->id]['category_name'] = implode(' > ', $pathnames);
+        // Second pass: build parent-child relationships.
+        foreach ($categorybyid as $id => $cat) {
+            if ($cat['parent'] == 0) {
+                // Root level category.
+                $tree[] = &$categorybyid[$id];
+            } else if (isset($categorybyid[$cat['parent']])) {
+                // Add as child of parent.
+                $categorybyid[$cat['parent']]['children'][] = &$categorybyid[$id];
             }
         }
 
-        // Sort by category name and return.
-        usort($grouped, fn($a, $b) => strcmp($a['category_name'], $b['category_name']));
-        return array_values($grouped);
+        // Filter out empty branches (no courses anywhere in subtree).
+        return self::filter_empty_branches($tree);
+    }
+
+    /**
+     * Recursively filter out branches with no courses.
+     *
+     * @param array $nodes Category nodes to filter
+     * @return array Filtered nodes
+     */
+    private static function filter_empty_branches(array $nodes): array {
+        $filtered = [];
+        foreach ($nodes as $node) {
+            $node['children'] = self::filter_empty_branches($node['children']);
+            // Keep if has courses or has non-empty children.
+            if (!empty($node['courses']) || !empty($node['children'])) {
+                $filtered[] = $node;
+            }
+        }
+        return $filtered;
     }
 
     /**

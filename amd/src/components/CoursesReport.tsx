@@ -22,7 +22,7 @@
  */
 
 import { useState, useEffect, useRef, useMemo } from 'preact/hooks';
-import type { CoursesReportData, ThemeConfig, CourseReport, SchoolReport, CourseCategory } from '../types';
+import type { CoursesReportData, ThemeConfig, CourseReport, SchoolReport, CategoryNode, CourseListItem } from '../types';
 
 // Sort configuration type
 type SortColumn = 'school' | 'students' | `avg-${number}` | `cr-${number}`;
@@ -33,40 +33,170 @@ interface CoursesReportProps {
     themeConfig: ThemeConfig;
 }
 
-// Grouped Course Select Component
-interface GroupedCourseSelectProps {
-    categories: CourseCategory[];
+// Tree Course Select Component
+interface TreeCourseSelectProps {
+    tree: CategoryNode[];
     selectedId: number | null;
     placeholder: string;
     onSelect: (id: number) => void;
 }
 
-function GroupedCourseSelect({ categories, selectedId, placeholder, onSelect }: GroupedCourseSelectProps) {
+// Check if a node or any of its descendants match the search
+function nodeMatchesSearch(node: CategoryNode, query: string): boolean {
+    const lowerQuery = query.toLowerCase();
+    // Check if any direct courses match
+    const hasMatchingCourse = node.courses.some(course =>
+        course.id.toString().includes(query) ||
+        course.fullname.toLowerCase().includes(lowerQuery) ||
+        course.shortname.toLowerCase().includes(lowerQuery)
+    );
+    if (hasMatchingCourse) return true;
+    // Check children recursively
+    return node.children.some(child => nodeMatchesSearch(child, query));
+}
+
+// Recursive tree node component
+function TreeNode({
+    node,
+    depth,
+    expandedNodes,
+    onToggle,
+    selectedId,
+    onSelect,
+    searchQuery
+}: {
+    node: CategoryNode;
+    depth: number;
+    expandedNodes: Set<string>;
+    onToggle: (key: string) => void;
+    selectedId: number | null;
+    onSelect: (id: number) => void;
+    searchQuery: string;
+}) {
+    const nodeKey = `cat-${node.id}`;
+    const isExpanded = expandedNodes.has(nodeKey);
+    const hasChildren = node.children.length > 0;
+    const hasCourses = node.courses.length > 0;
+    const paddingLeft = depth * 16 + 12;
+
+    // Filter courses based on search
+    const lowerQuery = searchQuery.toLowerCase();
+    const matchingCourses = searchQuery
+        ? node.courses.filter(course =>
+            course.id.toString().includes(searchQuery) ||
+            course.fullname.toLowerCase().includes(lowerQuery) ||
+            course.shortname.toLowerCase().includes(lowerQuery)
+        )
+        : node.courses;
+
+    // Check if any descendant matches search
+    const hasMatchingDescendants = searchQuery
+        ? node.children.some(child => nodeMatchesSearch(child, searchQuery))
+        : true;
+
+    // Hide non-matching branches when searching
+    if (searchQuery && matchingCourses.length === 0 && !hasMatchingDescendants) {
+        return null;
+    }
+
+    return (
+        <div>
+            {/* Category row */}
+            <button
+                type="button"
+                onClick={() => onToggle(nodeKey)}
+                className="w-full py-2 text-left text-sm font-medium text-gray-700 hover:bg-gray-100 flex items-center"
+                style={{ paddingLeft }}
+            >
+                <span className="w-4 mr-1 text-gray-400 shrink-0">
+                    {(hasChildren || hasCourses) && (isExpanded ? '▼' : '▶')}
+                </span>
+                <span className="truncate">{node.name}</span>
+            </button>
+
+            {/* Children and courses */}
+            {isExpanded && (
+                <>
+                    {node.children.map(child => (
+                        <TreeNode
+                            key={child.id}
+                            node={child}
+                            depth={depth + 1}
+                            expandedNodes={expandedNodes}
+                            onToggle={onToggle}
+                            selectedId={selectedId}
+                            onSelect={onSelect}
+                            searchQuery={searchQuery}
+                        />
+                    ))}
+                    {matchingCourses.map(course => (
+                        <button
+                            key={course.id}
+                            type="button"
+                            onClick={() => onSelect(course.id)}
+                            className={`w-full py-2 text-left text-sm hover:bg-blue-50 flex items-center justify-between pr-3 ${
+                                course.id === selectedId ? 'bg-blue-50 text-blue-700' : 'text-gray-600'
+                            }`}
+                            style={{ paddingLeft: (depth + 1) * 16 + 12 }}
+                        >
+                            <div className="flex items-center gap-1 truncate">
+                                <span className="text-gray-400 shrink-0">[{course.id}]</span>
+                                <span className="truncate">{course.fullname}</span>
+                            </div>
+                            <span className="text-xs text-gray-400 ml-2 shrink-0">
+                                {course.enrolled_count} enrolled
+                            </span>
+                        </button>
+                    ))}
+                </>
+            )}
+        </div>
+    );
+}
+
+// Find course by traversing tree
+function findCourseInTree(nodes: CategoryNode[], courseId: number | null): CourseListItem | undefined {
+    if (!courseId) return undefined;
+    for (const node of nodes) {
+        const found = node.courses.find(c => c.id === courseId);
+        if (found) return found;
+        const inChildren = findCourseInTree(node.children, courseId);
+        if (inChildren) return inChildren;
+    }
+    return undefined;
+}
+
+// Collect all node keys from tree
+function collectAllNodeKeys(nodes: CategoryNode[]): Set<string> {
+    const keys = new Set<string>();
+    const collect = (nodeList: CategoryNode[]) => {
+        for (const n of nodeList) {
+            keys.add(`cat-${n.id}`);
+            collect(n.children);
+        }
+    };
+    collect(nodes);
+    return keys;
+}
+
+function TreeCourseSelect({ tree, selectedId, placeholder, onSelect }: TreeCourseSelectProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
-    const [expandedCategories, setExpandedCategories] = useState<Set<number>>(new Set());
+    const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
     const containerRef = useRef<HTMLDivElement>(null);
     const searchInputRef = useRef<HTMLInputElement>(null);
 
-    // Find selected course across all categories
-    const selectedCourse = categories
-        .flatMap(cat => cat.courses)
-        .find(c => c.id == selectedId);
+    const selectedCourse = findCourseInTree(tree, selectedId);
 
-    // Filter courses based on search
-    const filteredCategories = useMemo(() => {
-        if (!searchQuery) return categories;
-        return categories
-            .map(cat => ({
-                ...cat,
-                courses: cat.courses.filter(course =>
-                    course.id.toString().includes(searchQuery) ||
-                    course.fullname.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                    course.shortname.toLowerCase().includes(searchQuery.toLowerCase())
-                )
-            }))
-            .filter(cat => cat.courses.length > 0);
-    }, [categories, searchQuery]);
+    const toggleNode = (key: string) => {
+        const newExpanded = new Set(expandedNodes);
+        if (newExpanded.has(key)) {
+            newExpanded.delete(key);
+        } else {
+            newExpanded.add(key);
+        }
+        setExpandedNodes(newExpanded);
+    };
 
     // Handle click outside to close dropdown
     useEffect(() => {
@@ -88,23 +218,12 @@ function GroupedCourseSelect({ categories, selectedId, placeholder, onSelect }: 
         }
     }, [isOpen]);
 
-    // Expand all when searching
+    // Auto-expand all when searching
     useEffect(() => {
         if (searchQuery) {
-            setExpandedCategories(new Set(filteredCategories.map(c => c.category_id)));
+            setExpandedNodes(collectAllNodeKeys(tree));
         }
-    }, [searchQuery, filteredCategories]);
-
-    // Toggle category expansion
-    const toggleCategory = (categoryId: number) => {
-        const newExpanded = new Set(expandedCategories);
-        if (newExpanded.has(categoryId)) {
-            newExpanded.delete(categoryId);
-        } else {
-            newExpanded.add(categoryId);
-        }
-        setExpandedCategories(newExpanded);
-    };
+    }, [searchQuery, tree]);
 
     const handleSelect = (id: number) => {
         onSelect(id);
@@ -156,48 +275,20 @@ function GroupedCourseSelect({ categories, selectedId, placeholder, onSelect }: 
                         </div>
                     </div>
 
-                    {/* Grouped Options List */}
+                    {/* Tree Options List */}
                     <div className="max-h-80 overflow-y-auto">
-                        {filteredCategories.length > 0 ? (
-                            filteredCategories.map(category => (
-                                <div key={category.category_id}>
-                                    {/* Category header - clickable to expand/collapse */}
-                                    <button
-                                        type="button"
-                                        onClick={() => toggleCategory(category.category_id)}
-                                        className="w-full px-4 py-2 bg-gray-100 font-medium text-sm text-gray-700 flex items-center justify-between hover:bg-gray-200 border-b border-gray-200"
-                                    >
-                                        <span>{category.category_name || 'Uncategorized'}</span>
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-xs text-gray-500">{category.courses.length} courses</span>
-                                            <span className="text-gray-400">{expandedCategories.has(category.category_id) ? '−' : '+'}</span>
-                                        </div>
-                                    </button>
-
-                                    {/* Courses in category */}
-                                    {expandedCategories.has(category.category_id) && (
-                                        <div>
-                                            {category.courses.map(course => (
-                                                <button
-                                                    key={course.id}
-                                                    type="button"
-                                                    onClick={() => handleSelect(course.id)}
-                                                    className={`w-full px-6 py-2.5 text-left text-sm hover:bg-blue-50 flex items-center justify-between ${
-                                                        course.id == selectedId ? 'bg-blue-50 text-blue-700' : 'text-gray-700'
-                                                    }`}
-                                                >
-                                                    <div className="flex items-center gap-2 truncate">
-                                                        <span className="text-xs text-gray-400 shrink-0">[{course.id}]</span>
-                                                        <span className="truncate">{course.fullname}</span>
-                                                    </div>
-                                                    <span className="text-xs text-gray-400 ml-2 shrink-0">
-                                                        {course.enrolled_count} enrolled
-                                                    </span>
-                                                </button>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
+                        {tree.length > 0 ? (
+                            tree.map(node => (
+                                <TreeNode
+                                    key={node.id}
+                                    node={node}
+                                    depth={0}
+                                    expandedNodes={expandedNodes}
+                                    onToggle={toggleNode}
+                                    selectedId={selectedId}
+                                    onSelect={handleSelect}
+                                    searchQuery={searchQuery}
+                                />
                             ))
                         ) : (
                             <div className="px-4 py-3 text-sm text-gray-500 text-center">
@@ -696,8 +787,8 @@ export default function CoursesReport({ data, themeConfig }: CoursesReportProps)
                 <div className="flex items-center gap-3">
                     <label className="text-sm font-medium text-gray-700 whitespace-nowrap">Select Course</label>
                     <div className="flex-1 max-w-md">
-                        <GroupedCourseSelect
-                            categories={data.courses_list}
+                        <TreeCourseSelect
+                            tree={data.courses_list}
                             selectedId={data.selected_courseid}
                             placeholder="Select a course..."
                             onSelect={handleCourseSelect}

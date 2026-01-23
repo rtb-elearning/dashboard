@@ -97,6 +97,14 @@ export interface CourseCategory {
     courses: CourseListItem[];
 }
 
+export interface CategoryNode {
+    id: number;
+    name: string;
+    parent: number;
+    children: CategoryNode[];
+    courses: CourseListItem[];
+}
+
 export interface SectionStat {
     section_number: number;
     section_name: string;
@@ -134,7 +142,7 @@ export interface AcademicYear {
 }
 
 export interface CoursesReportData {
-    courses_list: CourseCategory[];
+    courses_list: CategoryNode[];
     selected_courseid: number;
     course_report: CourseReport | null;
     available_years: AcademicYear[];
