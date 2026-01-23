@@ -188,36 +188,40 @@ const DONUT_COLORS = ['#F5A623', '#4CAF50', '#2196F3', '#9C27B0', '#00BCD4'];
 
 // Donut Chart Component for completion rate
 function CompletionDonut({ rate, label, colorIndex = 0 }: { rate: number; label: string; color?: string; colorIndex?: number }) {
-    const radius = 42;
-    const strokeWidth = 6;
+    const radius = 40;
+    const strokeWidth = 10;
     const circumference = 2 * Math.PI * radius;
-    const strokeDasharray = `${(rate / 100) * circumference} ${circumference}`;
+    const progressLength = (rate / 100) * circumference;
     const progressColor = DONUT_COLORS[colorIndex % DONUT_COLORS.length];
 
     return (
         <div className="flex flex-col items-center">
             <div className="relative w-28 h-28">
-                <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
-                    {/* Background circle */}
+                <svg viewBox="0 0 100 100" className="w-full h-full">
+                    {/* Background circle - always visible gray track */}
                     <circle
                         cx="50"
                         cy="50"
                         r={radius}
                         fill="none"
-                        stroke="#e0e0e0"
+                        stroke="#d1d5db"
                         strokeWidth={strokeWidth}
                     />
-                    {/* Progress circle */}
-                    <circle
-                        cx="50"
-                        cy="50"
-                        r={radius}
-                        fill="none"
-                        stroke={progressColor}
-                        strokeWidth={strokeWidth}
-                        strokeDasharray={strokeDasharray}
-                        strokeLinecap="round"
-                    />
+                    {/* Progress circle - starts from top (12 o'clock) */}
+                    {rate > 0 && (
+                        <circle
+                            cx="50"
+                            cy="50"
+                            r={radius}
+                            fill="none"
+                            stroke={progressColor}
+                            strokeWidth={strokeWidth}
+                            strokeDasharray={`${progressLength} ${circumference}`}
+                            strokeDashoffset={circumference * 0.25}
+                            strokeLinecap="round"
+                            style={{ transform: 'rotate(-90deg)', transformOrigin: '50% 50%' }}
+                        />
+                    )}
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
                     <span className="text-xl font-medium text-gray-500">{rate.toFixed(0)}%</span>
