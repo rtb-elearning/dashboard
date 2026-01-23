@@ -711,6 +711,8 @@ function ReportTable({ report, themeConfig }: { report: CourseReport; themeConfi
                                 ))}
                             </tr>
                         ))}
+                    </tbody>
+                    <tfoot className="sticky bottom-0 z-20">
                         {/* Grand Total Row */}
                         <tr className="border-t-2 border-gray-300 bg-gray-50 font-semibold">
                             <td className="px-3 py-2 sticky left-0 z-10 bg-gray-50"></td>
@@ -729,21 +731,21 @@ function ReportTable({ report, themeConfig }: { report: CourseReport; themeConfi
 
                                 return (
                                     <>
-                                        <td key={`avg-${idx}`} className="px-2 py-2 text-center">
+                                        <td key={`avg-${idx}`} className="px-2 py-2 text-center bg-gray-50">
                                             {avgGrade > 0
                                                 ? grademax
                                                     ? `${avgGrade.toFixed(1)}/${grademax}`
                                                     : avgGrade.toFixed(1)
                                                 : '-'}
                                         </td>
-                                        <td key={`cr-${idx}`} className="px-2 py-2 text-center">
+                                        <td key={`cr-${idx}`} className="px-2 py-2 text-center bg-gray-50">
                                             {section.completion_rate.toFixed(1)}%
                                         </td>
                                     </>
                                 );
                             })}
                         </tr>
-                    </tbody>
+                    </tfoot>
                 </table>
             </div>
         </div>
