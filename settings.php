@@ -164,25 +164,19 @@ if ($hassiteconfig) {
     ));
 
     // Enrollment cutoff date (month and day).
+    // Build month choices using userdate() for proper localization.
+    $monthchoices = [];
+    for ($i = 1; $i <= 12; $i++) {
+        // Create a timestamp for the 15th of each month (to avoid timezone edge cases).
+        $timestamp = mktime(12, 0, 0, $i, 15, 2000);
+        $monthchoices[(string)$i] = userdate($timestamp, '%B');
+    }
     $settings->add(new admin_setting_configselect(
         'local_elby_dashboard/enrollment_cutoff_month',
         get_string('enrollment_cutoff_month', 'local_elby_dashboard'),
         get_string('enrollment_cutoff_month_desc', 'local_elby_dashboard'),
         '9', // Default: September
-        [
-            '1' => get_string('january', 'langconfig'),
-            '2' => get_string('february', 'langconfig'),
-            '3' => get_string('march', 'langconfig'),
-            '4' => get_string('april', 'langconfig'),
-            '5' => get_string('may', 'langconfig'),
-            '6' => get_string('june', 'langconfig'),
-            '7' => get_string('july', 'langconfig'),
-            '8' => get_string('august', 'langconfig'),
-            '9' => get_string('september', 'langconfig'),
-            '10' => get_string('october', 'langconfig'),
-            '11' => get_string('november', 'langconfig'),
-            '12' => get_string('december', 'langconfig'),
-        ]
+        $monthchoices
     ));
 
     // Enrollment cutoff day.
