@@ -123,3 +123,21 @@ function local_elby_dashboard_pluginfile($course, $cm, $context, $filearea, $arg
 
     send_stored_file($file, 86400, 0, $forcedownload, $options);
 }
+
+/**
+ * Parse a region code into province and district components.
+ *
+ * Region codes follow the format PP DD SS (province, district, sector digits).
+ *
+ * @param string $regioncode The region code string.
+ * @return array{province: string, district: string} Parsed components.
+ */
+function local_elby_dashboard_parse_region_code(string $regioncode): array {
+    if (strlen($regioncode) < 2) {
+        return ['province' => '', 'district' => ''];
+    }
+    return [
+        'province' => substr($regioncode, 0, 2),
+        'district' => strlen($regioncode) >= 4 ? substr($regioncode, 0, 4) : '',
+    ];
+}

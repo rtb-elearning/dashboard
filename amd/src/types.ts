@@ -81,7 +81,64 @@ export interface ThemeConfig {
     menuVisibility: Record<string, boolean>;
 }
 
-export type PageId = 'home' | 'completion' | 'courses';
+export type PageId = 'home' | 'completion' | 'courses' | 'schools' | 'school_detail' | 'students' | 'admin';
+
+// Metrics types
+export interface SchoolMetrics {
+    period_start: number;
+    period_end: number;
+    period_type: string;
+    total_enrolled: number;
+    total_active: number;
+    total_inactive: number;
+    new_enrollments: number;
+    avg_actions_per_student: number;
+    avg_active_days: number;
+    avg_time_spent_minutes: number;
+    total_resource_views: number;
+    avg_resources_per_student: number;
+    total_submissions: number;
+    total_quiz_attempts: number;
+    avg_assignment_score: number;
+    avg_quiz_score: number;
+    submission_rate: number;
+    avg_course_progress: number;
+    completion_rate: number;
+    high_engagement_count: number;
+    medium_engagement_count: number;
+    low_engagement_count: number;
+    at_risk_count: number;
+}
+
+export interface StudentMetric {
+    userid: number;
+    fullname: string;
+    sdms_id: string;
+    program: string;
+    school_name: string;
+    school_code: string;
+    last_access: number;
+    active_days: number;
+    total_actions: number;
+    quizzes_avg_score: number | null;
+    course_progress: number | null;
+    status: string;
+}
+
+export interface StudentListResponse {
+    students: StudentMetric[];
+    total_count: number;
+    page: number;
+    perpage: number;
+}
+
+export interface EngagementDistribution {
+    high_engagement_count: number;
+    medium_engagement_count: number;
+    low_engagement_count: number;
+    at_risk_count: number;
+    total_enrolled: number;
+}
 
 // Course report types
 export interface CourseListItem {

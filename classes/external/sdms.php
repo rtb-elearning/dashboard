@@ -350,9 +350,6 @@ class sdms extends external_api {
                     'user_type' => $usertype,
                     'status' => '',
                     'academic_year' => '',
-                    'school' => null,
-                    'student_data' => null,
-                    'staff_data' => null,
                 ];
             }
 
@@ -376,10 +373,21 @@ class sdms extends external_api {
 
             if ($usertype === 'student') {
                 $studentdata = [
+                    'names' => $data->names ?? '',
+                    'gender' => $data->gender ?? '',
+                    'date_of_birth' => $data->dateOfBirth ?? '',
+                    'study_level' => $data->studyLevel ?? '',
+                    'level_code' => $data->levelCode ?? '',
+                    'grade_code' => $data->gradeCode ?? '',
+                    'class_grade' => $data->classGrade ?? '',
+                    'class_group' => $data->classGroup ?? '',
                     'program' => $data->combination ?? '',
                     'program_code' => $data->combinationCode ?? '',
                     'registration_date' => $data->registrationDate ?? '',
-                    'classgroup_id' => $data->classGroupId ?? '',
+                    'parent_guardian_name' => $data->parentGardianName ?? '',
+                    'address' => $data->address ?? '',
+                    'emergency_contact_person' => $data->emergenceContactPerson ?? '',
+                    'emergency_contact_number' => $data->emergenceContactNumber ?? '',
                 ];
             } else {
                 $specialities = [];
@@ -403,7 +411,7 @@ class sdms extends external_api {
                 ];
             }
 
-            return [
+            $result = [
                 'success' => true,
                 'error' => '',
                 'sdms_id' => ($usertype === 'student')
@@ -412,10 +420,19 @@ class sdms extends external_api {
                 'user_type' => $usertype,
                 'status' => $data->status ?? '',
                 'academic_year' => $data->currentAcadmicYear ?? $data->academicYear ?? '',
-                'school' => $school,
-                'student_data' => $studentdata,
-                'staff_data' => $staffdata,
             ];
+
+            if ($school !== null) {
+                $result['school'] = $school;
+            }
+            if ($studentdata !== null) {
+                $result['student_data'] = $studentdata;
+            }
+            if ($staffdata !== null) {
+                $result['staff_data'] = $staffdata;
+            }
+
+            return $result;
         } catch (\Exception $e) {
             return [
                 'success' => false,
@@ -424,9 +441,6 @@ class sdms extends external_api {
                 'user_type' => $usertype,
                 'status' => '',
                 'academic_year' => '',
-                'school' => null,
-                'student_data' => null,
-                'staff_data' => null,
             ];
         }
     }
@@ -468,10 +482,21 @@ class sdms extends external_api {
         ], 'School data with hierarchy', VALUE_OPTIONAL);
 
         $studentstructure = new external_single_structure([
+            'names' => new external_value(PARAM_TEXT, 'Full name'),
+            'gender' => new external_value(PARAM_TEXT, 'Gender (MALE/FEMALE)'),
+            'date_of_birth' => new external_value(PARAM_TEXT, 'Date of birth (YYYY-MM-DD)'),
+            'study_level' => new external_value(PARAM_TEXT, 'Study level (e.g. TVET, OL, AL)'),
+            'level_code' => new external_value(PARAM_TEXT, 'Level code'),
+            'grade_code' => new external_value(PARAM_TEXT, 'Grade code'),
+            'class_grade' => new external_value(PARAM_TEXT, 'Class grade name (e.g. Level 4)'),
+            'class_group' => new external_value(PARAM_TEXT, 'Class group name (e.g. LEVEL4 NIT)'),
             'program' => new external_value(PARAM_TEXT, 'Program/combination name'),
             'program_code' => new external_value(PARAM_TEXT, 'Program code'),
             'registration_date' => new external_value(PARAM_TEXT, 'Registration date'),
-            'classgroup_id' => new external_value(PARAM_TEXT, 'Class group ID'),
+            'parent_guardian_name' => new external_value(PARAM_TEXT, 'Parent/guardian name'),
+            'address' => new external_value(PARAM_TEXT, 'Address'),
+            'emergency_contact_person' => new external_value(PARAM_TEXT, 'Emergency contact person'),
+            'emergency_contact_number' => new external_value(PARAM_TEXT, 'Emergency contact number'),
         ], 'Student-specific data', VALUE_OPTIONAL);
 
         $specialitystructure = new external_single_structure([

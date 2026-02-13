@@ -101,6 +101,9 @@ $themeconfig = [
         'message' => (bool) (get_config('local_elby_dashboard', 'showmenu_message') ?? 1),
         'completion' => (bool) (get_config('local_elby_dashboard', 'showmenu_completion') ?? 1),
         'settings' => (bool) (get_config('local_elby_dashboard', 'showmenu_settings') ?? 1),
+        'schools' => has_capability('local/elby_dashboard:viewreports', $context),
+        'students' => has_capability('local/elby_dashboard:viewreports', $context),
+        'admin' => has_capability('moodle/site:config', $context),
     ],
 ];
 

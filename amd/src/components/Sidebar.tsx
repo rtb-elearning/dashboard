@@ -34,7 +34,9 @@ interface SidebarProps {
 // Menu items
 const menuItems = [
     { id: 'home', name: 'Dashboard', icon: 'dashboard', url: '/local/elby_dashboard/index.php' },
-    { id: 'courses', name: 'Courses', icon: 'courses', url: '/local/elby_dashboard/courses.php' },
+    { id: 'schools', name: 'Schools', icon: 'pedagogy', url: '/local/elby_dashboard/schools.php', capability: 'viewreports' },
+    { id: 'students', name: 'Students', icon: 'communication', url: '/local/elby_dashboard/students.php', capability: 'viewreports' },
+    { id: 'admin', name: 'Admin Panel', icon: 'settings', url: '/local/elby_dashboard/admin/index.php', capability: 'admin' },
 ];
 
 // Icon components

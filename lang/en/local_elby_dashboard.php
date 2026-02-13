@@ -163,6 +163,83 @@ $string['nosdmsid'] = 'User does not have an SDMS ID configured';
 $string['sdmsnotfound'] = 'Record not found in SDMS';
 $string['sdmssyncfailed'] = 'Failed to sync from SDMS: {$a}';
 
+// =============================================
+// SDMS SELF-REGISTRATION
+// =============================================
+$string['sdms_signup_title'] = 'Sign Up with SDMS';
+$string['sdms_signup_heading'] = 'Create Your Account';
+$string['sdms_signup_subtext'] = 'Sign up using your SDMS code';
+$string['sdms_lookup_heading'] = 'Find Your Account';
+$string['sdms_preview_heading'] = 'Your Information';
+$string['sdms_register_heading'] = 'Set Your Password';
+$string['sdms_code_label'] = 'SDMS Code';
+$string['sdms_code_placeholder'] = 'Enter your SDMS code';
+$string['sdms_usertype_label'] = 'I am a';
+$string['sdms_student'] = 'Student';
+$string['sdms_staff'] = 'Staff';
+$string['sdms_lookup_btn'] = 'Look Up';
+$string['sdms_continue_btn'] = 'Continue to Register';
+$string['sdms_register_btn'] = 'Create Account';
+$string['sdms_back'] = 'Back';
+$string['sdms_back_to_login'] = 'Back to login';
+$string['sdms_confirm_password'] = 'Confirm Password';
+$string['sdms_already_registered'] = 'Already Registered';
+$string['sdms_already_registered_msg'] = 'An account with this SDMS code already exists. Please log in instead.';
+$string['sdms_go_to_login'] = 'Go to Login';
+$string['sdms_not_found'] = 'No record found in SDMS for this code. Please check your code and try again.';
+$string['sdms_success_title'] = 'Account Created!';
+$string['sdms_success_msg'] = 'Your account has been created successfully. You can now log in with your SDMS code as your username.';
+$string['sdms_password_mismatch'] = 'Passwords do not match.';
+$string['sdms_code_empty'] = 'Please enter your SDMS code.';
+$string['sdms_rate_limited'] = 'Too many attempts. Please try again in a few minutes.';
+$string['sdms_signup_email_domain'] = 'Signup Email Domain';
+$string['sdms_signup_email_domain_desc'] = 'Domain used to generate email addresses for SDMS self-registration (e.g., rtb.ac.rw). Emails will be in the format: sdms_code@domain.';
+$string['sdms_signup_link'] = 'Sign up with SDMS';
+
+// Scheduled task names.
+$string['task_compute_user_metrics'] = 'Compute user engagement metrics';
+$string['task_aggregate_school_metrics'] = 'Aggregate school-level metrics';
+$string['task_refresh_sdms_cache'] = 'Refresh stale SDMS cache records';
+$string['task_cleanup_old_metrics'] = 'Clean up old metrics data';
+
+// Metrics API strings.
+$string['no_metrics_data'] = 'No metrics data available for this period';
+
+// Schools directory strings.
+$string['schools_directory'] = 'Schools Directory';
+$string['school_detail'] = 'School Detail';
+$string['student_list'] = 'Student List';
+$string['admin_panel'] = 'Admin Panel';
+$string['filter_province'] = 'Province';
+$string['filter_district'] = 'District';
+$string['filter_all'] = 'All';
+$string['filter_course'] = 'Course';
+$string['filter_school'] = 'School';
+$string['filter_engagement'] = 'Engagement Level';
+$string['export_csv'] = 'Export CSV';
+$string['engagement_high'] = 'High Engagement';
+$string['engagement_medium'] = 'Medium Engagement';
+$string['engagement_low'] = 'Low Engagement';
+$string['at_risk'] = 'At Risk';
+$string['total_enrolled'] = 'Total Enrolled';
+$string['total_active'] = 'Active This Week';
+$string['avg_quiz_score'] = 'Avg Quiz Score';
+$string['last_synced'] = 'Last Synced';
+$string['sync_school'] = 'Sync School';
+$string['sync_status'] = 'Sync Status';
+$string['linked_users'] = 'Linked Users';
+$string['stale_records'] = 'Stale Records';
+$string['error_count'] = 'Error Count';
+$string['recent_sync_logs'] = 'Recent Sync Logs';
+$string['manual_sync'] = 'Manual Sync';
+$string['task_schedule'] = 'Task Schedule';
+$string['last_run'] = 'Last Run';
+$string['next_scheduled'] = 'Next Scheduled';
+$string['search_students'] = 'Search students...';
+$string['search_schools'] = 'Search schools...';
+$string['no_schools_found'] = 'No schools found';
+$string['no_students_found'] = 'No students found';
+
 // General strings.
 $string['loading'] = 'Loading...';
 $string['error'] = 'An error occurred';

@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Version information for local_elby_dashboard.
+ * Event observers for local_elby_dashboard.
  *
  * @package    local_elby_dashboard
  * @copyright  2025 Rwanda TVET Board
@@ -24,8 +24,21 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->component = 'local_elby_dashboard';
-$plugin->version = 2026021308;           // The current plugin version (Date: YYYYMMDDXX).
-$plugin->requires = 2025041400;          // Requires Moodle 5.0 (Build: 20250414).
-$plugin->maturity = MATURITY_ALPHA;      // Code maturity level.
-$plugin->release = '1.0.0';              // Human-readable version name.
+$observers = [
+    [
+        'eventname' => '\mod_quiz\event\attempt_submitted',
+        'callback'  => '\local_elby_dashboard\observer::quiz_submitted',
+    ],
+    [
+        'eventname' => '\mod_assign\event\submission_created',
+        'callback'  => '\local_elby_dashboard\observer::assignment_submitted',
+    ],
+    [
+        'eventname' => '\core\event\course_module_completion_updated',
+        'callback'  => '\local_elby_dashboard\observer::course_module_completed',
+    ],
+    [
+        'eventname' => '\core\event\course_completed',
+        'callback'  => '\local_elby_dashboard\observer::course_completed',
+    ],
+];

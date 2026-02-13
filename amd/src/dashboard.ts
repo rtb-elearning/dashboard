@@ -111,13 +111,16 @@ export const init = (selector: string = '#elby-dashboard-root') => {
             ? JSON.parse(coursesReportAttr)
             : null;
 
+        // Read school code for school detail page.
+        const schoolCode = container.getAttribute('data-school-code') || undefined;
+
         // Get active page (default to 'home')
         const activePage: PageId = pageAttr || 'home';
 
         console.log('Elby Dashboard initialized:', { user: user.fullname, activePage });
 
         // Render the Preact app
-        render(h(App, { user, stats, activePage, sidenavConfig, themeConfig, coursesReportData }), container);
+        render(h(App, { user, stats, activePage, sidenavConfig, themeConfig, coursesReportData, schoolCode }), container);
     } catch (error) {
         console.error('Error initializing Elby Dashboard:', error);
     }

@@ -15,17 +15,30 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Version information for local_elby_dashboard.
+ * SDMS self-registration page.
  *
  * @package    local_elby_dashboard
  * @copyright  2025 Rwanda TVET Board
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-defined('MOODLE_INTERNAL') || die();
+require_once(__DIR__ . '/../../config.php');
 
-$plugin->component = 'local_elby_dashboard';
-$plugin->version = 2026021308;           // The current plugin version (Date: YYYYMMDDXX).
-$plugin->requires = 2025041400;          // Requires Moodle 5.0 (Build: 20250414).
-$plugin->maturity = MATURITY_ALPHA;      // Code maturity level.
-$plugin->release = '1.0.0';              // Human-readable version name.
+// Redirect if already logged in.
+if (isloggedin() && !isguestuser()) {
+    redirect(new moodle_url('/'));
+}
+
+$PAGE->set_url(new moodle_url('/local/elby_dashboard/signup.php'));
+$PAGE->set_context(context_system::instance());
+$PAGE->set_pagelayout('signup');
+$PAGE->set_title(get_string('sdms_signup_title', 'local_elby_dashboard'));
+
+// Load AMD module for multi-step signup.
+$PAGE->requires->js_call_amd('theme_elby/sdmssignup', 'init');
+
+echo $OUTPUT->header();
+echo $OUTPUT->render_from_template('local_elby_dashboard/signup', [
+    'loginurl' => (new moodle_url('/login/index.php'))->out(false),
+]);
+echo $OUTPUT->footer();

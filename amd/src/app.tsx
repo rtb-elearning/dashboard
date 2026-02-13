@@ -27,6 +27,10 @@ import Dashboard from './components/Dashboard';
 import Sidebar from './components/Sidebar';
 import CompletionReport from './components/CompletionReport';
 import CoursesReport from './components/CoursesReport';
+import SchoolDirectory from './components/SchoolDirectory';
+import SchoolDetail from './components/SchoolDetail';
+import StudentList from './components/StudentList';
+import AdminPanel from './components/AdminPanel';
 import type { UserData, StatsData, PageId, SidenavConfig, ThemeConfig, CoursesReportData } from './types';
 
 interface AppProps {
@@ -36,6 +40,7 @@ interface AppProps {
     sidenavConfig: SidenavConfig;
     themeConfig: ThemeConfig;
     coursesReportData?: CoursesReportData | null;
+    schoolCode?: string;
 }
 
 // Header component with search and user profile
@@ -45,9 +50,16 @@ function Header({ user, activePage, themeConfig, onMenuClick }: {
     themeConfig: ThemeConfig;
     onMenuClick: () => void;
 }) {
-    const pageTitle = activePage === 'home' ? 'Dashboard' :
-                      activePage === 'completion' ? 'Completion Report' :
-                      activePage === 'courses' ? 'Courses Report' : 'Dashboard';
+    const pageTitles: Record<string, string> = {
+        home: 'Dashboard',
+        completion: 'Completion Report',
+        courses: 'Courses Report',
+        schools: 'Schools Directory',
+        school_detail: 'School Detail',
+        students: 'Student List',
+        admin: 'Admin Panel',
+    };
+    const pageTitle = pageTitles[activePage] || 'Dashboard';
 
     return (
         <header className="bg-white border-b border-gray-100 px-2 sm:px-4 lg:px-6 py-3 sm:py-4">
@@ -103,7 +115,7 @@ function Header({ user, activePage, themeConfig, onMenuClick }: {
     );
 }
 
-export default function App({ user, stats, activePage, sidenavConfig, themeConfig, coursesReportData }: AppProps) {
+export default function App({ user, stats, activePage, sidenavConfig, themeConfig, coursesReportData, schoolCode }: AppProps) {
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
     const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
@@ -126,6 +138,10 @@ export default function App({ user, stats, activePage, sidenavConfig, themeConfi
                     {activePage === 'courses' && coursesReportData && (
                         <CoursesReport data={coursesReportData} themeConfig={themeConfig} />
                     )}
+                    {activePage === 'schools' && <SchoolDirectory />}
+                    {activePage === 'school_detail' && schoolCode && <SchoolDetail schoolCode={schoolCode} />}
+                    {activePage === 'students' && <StudentList />}
+                    {activePage === 'admin' && <AdminPanel />}
                 </main>
             </div>
         </div>

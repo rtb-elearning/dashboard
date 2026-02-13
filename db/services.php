@@ -110,6 +110,50 @@ $functions = [
         'ajax'         => true,
         'capabilities' => 'local/elby_dashboard:manage',
     ],
+
+    // Metrics APIs.
+    'local_elby_dashboard_get_school_metrics' => [
+        'classname'    => 'local_elby_dashboard\external\metrics',
+        'methodname'   => 'get_school_metrics',
+        'description'  => 'Get aggregated school metrics for the most recent period',
+        'type'         => 'read',
+        'ajax'         => true,
+        'capabilities' => 'local/elby_dashboard:viewreports',
+    ],
+    'local_elby_dashboard_get_student_list' => [
+        'classname'    => 'local_elby_dashboard\external\metrics',
+        'methodname'   => 'get_student_list',
+        'description'  => 'Get paginated student list with engagement metrics',
+        'type'         => 'read',
+        'ajax'         => true,
+        'capabilities' => 'local/elby_dashboard:viewreports',
+    ],
+    'local_elby_dashboard_get_engagement_distribution' => [
+        'classname'    => 'local_elby_dashboard\external\metrics',
+        'methodname'   => 'get_engagement_distribution',
+        'description'  => 'Get engagement distribution breakdown for a school',
+        'type'         => 'read',
+        'ajax'         => true,
+        'capabilities' => 'local/elby_dashboard:viewreports',
+    ],
+
+    // SDMS self-registration APIs (no login required).
+    'local_elby_dashboard_lookup_for_signup' => [
+        'classname'     => 'local_elby_dashboard\external\signup',
+        'methodname'    => 'lookup_for_signup',
+        'description'   => 'Look up SDMS user for self-registration (no login required)',
+        'type'          => 'read',
+        'ajax'          => true,
+        'loginrequired' => false,
+    ],
+    'local_elby_dashboard_register_sdms_user' => [
+        'classname'     => 'local_elby_dashboard\external\signup',
+        'methodname'    => 'register_sdms_user',
+        'description'   => 'Register a new Moodle user from SDMS data (no login required)',
+        'type'          => 'write',
+        'ajax'          => true,
+        'loginrequired' => false,
+    ],
 ];
 
 $services = [
@@ -125,6 +169,11 @@ $services = [
             'local_elby_dashboard_link_user',
             'local_elby_dashboard_refresh_user',
             'local_elby_dashboard_sync_school_now',
+            'local_elby_dashboard_get_school_metrics',
+            'local_elby_dashboard_get_student_list',
+            'local_elby_dashboard_get_engagement_distribution',
+            'local_elby_dashboard_lookup_for_signup',
+            'local_elby_dashboard_register_sdms_user',
         ],
         'restrictedusers' => 0,
         'enabled'         => 1,

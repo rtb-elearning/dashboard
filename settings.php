@@ -248,4 +248,13 @@ if ($hassiteconfig) {
         '604800',
         PARAM_INT
     ));
+
+    // SDMS Signup Email Domain.
+    $settings->add(new admin_setting_configtext(
+        'local_elby_dashboard/sdms_signup_email_domain',
+        get_string('sdms_signup_email_domain', 'local_elby_dashboard'),
+        get_string('sdms_signup_email_domain_desc', 'local_elby_dashboard'),
+        'rtb.ac.rw',
+        PARAM_HOST
+    ));
 }

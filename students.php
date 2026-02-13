@@ -15,62 +15,55 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Elby Dashboard admin page.
+ * Elby Dashboard student list page.
  *
  * @package    local_elby_dashboard
  * @copyright  2025 Rwanda TVET Board
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-require_once('../../../config.php');
+require_once('../../config.php');
 require_once($CFG->dirroot . '/local/elby_dashboard/lib.php');
 
-// Require login and admin capability.
+// Require login.
 require_login();
 
 // Set up the page context.
 $context = context_system::instance();
 $PAGE->set_context($context);
 
-// Check for admin capability - only site admins can access.
-require_capability('moodle/site:config', $context);
+// Check capability.
+require_capability('local/elby_dashboard:viewreports', $context);
 
-$PAGE->set_url(new moodle_url('/local/elby_dashboard/admin/index.php'));
+$PAGE->set_url(new moodle_url('/local/elby_dashboard/students.php'));
 $PAGE->set_pagelayout('standard');
-$PAGE->set_title(get_string('admin_page_title', 'local_elby_dashboard'));
-$PAGE->set_heading(get_string('admin_page_heading', 'local_elby_dashboard'));
+$PAGE->set_title(get_string('page_title', 'local_elby_dashboard') . ' - ' .
+    get_string('student_list', 'local_elby_dashboard'));
+$PAGE->set_heading(get_string('page_heading', 'local_elby_dashboard'));
 
-// Add body classes for plugin-specific page styling.
+// Add body classes.
 $PAGE->add_body_class('local-elby-dashboard-plugin');
 $PAGE->add_body_class('local-elby-dashboard-page');
-$PAGE->add_body_class('local-elby-dashboard-admin-page');
+$PAGE->add_body_class('local-elby-dashboard-students');
 
-// Load custom CSS.
+// Load CSS and JS.
 $PAGE->requires->css('/local/elby_dashboard/styles.css');
-
-// Load custom JavaScript module.
 $PAGE->requires->js_call_amd('local_elby_dashboard/dashboard', 'init');
 
-// Add breadcrumb navigation.
-$PAGE->navbar->add(get_string('pluginname', 'local_elby_dashboard'));
-$PAGE->navbar->add(get_string('nav_admin', 'local_elby_dashboard'));
+// Breadcrumbs.
+$PAGE->navbar->add(get_string('pluginname', 'local_elby_dashboard'), new moodle_url('/local/elby_dashboard/index.php'));
+$PAGE->navbar->add(get_string('student_list', 'local_elby_dashboard'));
 
 // Get sidenav configuration.
 $sidenavtitle = get_config('local_elby_dashboard', 'sidenavtitle') ?: 'Dashboard';
 $sidenavlogourl = '';
 
-// Get logo file URL if it exists.
 $fs = get_file_storage();
 $files = $fs->get_area_files($context->id, 'local_elby_dashboard', 'logo', 0, 'sortorder', false);
 if ($files) {
     $file = reset($files);
     $sidenavlogourl = moodle_url::make_pluginfile_url(
-        $context->id,
-        'local_elby_dashboard',
-        'logo',
-        0,
-        '/',
-        $file->get_filename()
+        $context->id, 'local_elby_dashboard', 'logo', 0, '/', $file->get_filename()
     )->out();
 }
 
@@ -79,9 +72,11 @@ $sidenavconfig = [
     'logoUrl' => $sidenavlogourl ?: null,
 ];
 
-// Get theme configuration.
+// Get theme configuration with capability-based menu items.
+$isadmin = has_capability('moodle/site:config', $context);
+$canviewreports = has_capability('local/elby_dashboard:viewreports', $context);
+
 $themeconfig = [
-    // Colors.
     'sidenavAccentColor' => get_config('local_elby_dashboard', 'sidenavaccentcolor') ?: '#005198',
     'statCard1Color' => get_config('local_elby_dashboard', 'statcard1color') ?: '#cffafe',
     'statCard2Color' => get_config('local_elby_dashboard', 'statcard2color') ?: '#fef3c7',
@@ -89,11 +84,9 @@ $themeconfig = [
     'statCard4Color' => get_config('local_elby_dashboard', 'statcard4color') ?: '#dcfce7',
     'chartPrimaryColor' => get_config('local_elby_dashboard', 'chartprimarycolor') ?: '#22d3ee',
     'chartSecondaryColor' => get_config('local_elby_dashboard', 'chartsecondarycolor') ?: '#a78bfa',
-    // Header options.
     'showSearchBar' => (bool) (get_config('local_elby_dashboard', 'showsearchbar') ?? 1),
     'showNotifications' => (bool) (get_config('local_elby_dashboard', 'shownotifications') ?? 1),
     'showUserProfile' => (bool) (get_config('local_elby_dashboard', 'showuserprofile') ?? 1),
-    // Menu visibility.
     'menuVisibility' => [
         'courses' => (bool) (get_config('local_elby_dashboard', 'showmenu_courses') ?? 1),
         'presence' => (bool) (get_config('local_elby_dashboard', 'showmenu_presence') ?? 1),
@@ -103,10 +96,13 @@ $themeconfig = [
         'message' => (bool) (get_config('local_elby_dashboard', 'showmenu_message') ?? 1),
         'completion' => (bool) (get_config('local_elby_dashboard', 'showmenu_completion') ?? 1),
         'settings' => (bool) (get_config('local_elby_dashboard', 'showmenu_settings') ?? 1),
+        'schools' => $canviewreports,
+        'students' => $canviewreports,
+        'admin' => $isadmin,
     ],
 ];
 
-// Prepare user data for Preact (via data attributes).
+// Prepare user data.
 $userroles = [];
 foreach (get_user_roles($context, $USER->id) as $role) {
     $userroles[] = $role->shortname;
@@ -120,68 +116,19 @@ $userdata = [
     'email' => $USER->email,
     'avatar' => $OUTPUT->get_generated_image_for_id($USER->id),
     'roles' => $userroles,
-    'isAdmin' => true,
+    'isAdmin' => $isadmin,
 ];
 
-// Prepare comprehensive stats data for admin dashboard.
+// Minimal stats for non-home pages.
 $statsdata = [
-    'totalCourses' => $DB->count_records('course') - 1,
-    'totalUsers' => $DB->count_records('user', ['deleted' => 0]) - 1,
-    'totalEnrollments' => $DB->count_records('user_enrolments'),
-    'totalActivities' => $DB->count_records('course_modules'),
-    'activeUsers' => $DB->count_records_select('user', 'deleted = 0 AND lastaccess > ?', [time() - 86400 * 30]),
-    'totalTeachers' => $DB->count_records_sql(
-        "SELECT COUNT(DISTINCT ra.userid)
-         FROM {role_assignments} ra
-         JOIN {role} r ON r.id = ra.roleid
-         WHERE r.shortname IN ('teacher', 'editingteacher')"
-    ),
-    'totalStudents' => $DB->count_records_sql(
-        "SELECT COUNT(DISTINCT ra.userid)
-         FROM {role_assignments} ra
-         JOIN {role} r ON r.id = ra.roleid
-         WHERE r.shortname = 'student'"
-    ),
+    'totalCourses' => 0,
+    'totalUsers' => 0,
+    'totalEnrollments' => 0,
+    'totalActivities' => 0,
+    'totalTeachers' => 0,
+    'totalStudents' => 0,
+    'teachers' => [],
 ];
-
-// Pre-load admin panel data.
-$ttl = (int) (get_config('local_elby_dashboard', 'sdms_cache_ttl') ?: 604800);
-$stalethreshold = time() - $ttl;
-
-$adminstats = [
-    'linked_users' => $DB->count_records('elby_sdms_users'),
-    'stale_users' => $DB->count_records_select('elby_sdms_users', 'last_synced < :threshold',
-        ['threshold' => $stalethreshold]),
-    'error_users' => $DB->count_records('elby_sdms_users', ['sync_status' => 0]),
-    'total_schools' => $DB->count_records('elby_schools'),
-    'user_metrics_count' => $DB->count_records('elby_user_metrics'),
-    'school_metrics_count' => $DB->count_records('elby_school_metrics'),
-];
-
-// Get recent sync logs.
-$synclogs = $DB->get_records('elby_sync_log', null, 'timecreated DESC', '*', 0, 20);
-$formattedlogs = [];
-foreach ($synclogs as $log) {
-    $formattedlogs[] = [
-        'id' => (int) $log->id,
-        'sync_type' => $log->sync_type,
-        'entity_id' => $log->entity_id ?? '',
-        'operation' => $log->operation,
-        'error_message' => $log->error_message,
-        'triggered_by' => $log->triggered_by ?? '',
-        'timecreated' => (int) $log->timecreated,
-    ];
-}
-
-$admindata = [
-    'stats' => $adminstats,
-    'logs' => $formattedlogs,
-];
-
-// Add capability-based menu visibility.
-$themeconfig['menuVisibility']['schools'] = true;
-$themeconfig['menuVisibility']['students'] = true;
-$themeconfig['menuVisibility']['admin'] = true;
 
 // Prepare data for template.
 $templatecontext = [
@@ -189,8 +136,7 @@ $templatecontext = [
     'stats_data_json' => json_encode($statsdata, JSON_HEX_QUOT | JSON_HEX_APOS),
     'sidenav_config_json' => json_encode($sidenavconfig, JSON_HEX_QUOT | JSON_HEX_APOS),
     'theme_config_json' => json_encode($themeconfig, JSON_HEX_QUOT | JSON_HEX_APOS),
-    'admin_data_json' => json_encode($admindata, JSON_HEX_QUOT | JSON_HEX_APOS),
-    'active_page' => 'admin',
+    'active_page' => 'students',
 ];
 
 // Output the page.

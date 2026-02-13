@@ -29,6 +29,9 @@ namespace local_elby_dashboard;
 
 defined('MOODLE_INTERNAL') || die();
 
+global $CFG;
+require_once($CFG->libdir . '/filelib.php');
+
 /**
  * SDMS API client.
  *
@@ -130,6 +133,11 @@ class sdms_client {
                     $lasterror = 'Invalid JSON response';
                     $this->log_request($url, $httpcode, $responsetime, $entitytype, $entityid, $lasterror);
                     throw new \moodle_exception('sdmsapierror', 'local_elby_dashboard', '', null, $lasterror);
+                }
+
+                // API may return an array — unwrap the first element.
+                if (is_array($data)) {
+                    $data = !empty($data) ? $data[0] : null;
                 }
 
                 // Empty response or empty object — treat as not found.
