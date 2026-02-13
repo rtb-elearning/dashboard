@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Version information for local_elby_dashboard.
+ * Upgrade steps for local_elby_dashboard.
  *
  * @package    local_elby_dashboard
  * @copyright  2025 Rwanda TVET Board
@@ -24,8 +24,27 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->component = 'local_elby_dashboard';
-$plugin->version = 2026021302;           // The current plugin version (Date: YYYYMMDDXX).
-$plugin->requires = 2025041400;          // Requires Moodle 5.0 (Build: 20250414).
-$plugin->maturity = MATURITY_ALPHA;      // Code maturity level.
-$plugin->release = '1.0.0';              // Human-readable version name.
+function xmldb_local_elby_dashboard_upgrade($oldversion) {
+    global $CFG, $DB;
+
+    $dbman = $DB->get_manager();
+
+    if ($oldversion < 2026021301) {
+        // Create all SDMS integration tables from install.xml.
+        // Load the XMLDB schema and create any tables that don't exist yet.
+        $xmldbfile = new xmldb_file($CFG->dirroot . '/local/elby_dashboard/db/install.xml');
+        $xmldbfile->loadXMLStructure();
+        $structure = $xmldbfile->getStructure();
+        $tables = $structure->getTables();
+
+        foreach ($tables as $table) {
+            if (!$dbman->table_exists($table)) {
+                $dbman->create_table($table);
+            }
+        }
+
+        upgrade_plugin_savepoint(true, 2026021301, 'local', 'elby_dashboard');
+    }
+
+    return true;
+}

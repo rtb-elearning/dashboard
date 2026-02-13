@@ -145,6 +145,24 @@ $string['enrollment_cutoff_month_desc'] = 'Only include students enrolled on or 
 $string['enrollment_cutoff_day'] = 'Enrollment Cutoff Day';
 $string['enrollment_cutoff_day_desc'] = 'The day of the month for the enrollment cutoff date.';
 
+// =============================================
+// SDMS INTEGRATION SETTINGS
+// =============================================
+$string['sdmsheading'] = 'SDMS Integration';
+$string['sdmsheading_desc'] = 'Configure connection to the Student Data Management System API. SDMS uses IP whitelist authentication.';
+$string['sdms_api_url'] = 'SDMS API URL';
+$string['sdms_api_url_desc'] = 'Base URL for the SDMS API (e.g., http://sdms.internal/api). No trailing slash.';
+$string['sdms_timeout'] = 'Request Timeout';
+$string['sdms_timeout_desc'] = 'HTTP request timeout in seconds. Default: 30';
+$string['sdms_cache_ttl'] = 'Cache TTL';
+$string['sdms_cache_ttl_desc'] = 'Time-to-live for cached SDMS data in seconds. Default: 604800 (7 days)';
+
+// SDMS error messages.
+$string['sdmsapierror'] = 'SDMS API error: {$a}';
+$string['nosdmsid'] = 'User does not have an SDMS ID configured';
+$string['sdmsnotfound'] = 'Record not found in SDMS';
+$string['sdmssyncfailed'] = 'Failed to sync from SDMS: {$a}';
+
 // General strings.
 $string['loading'] = 'Loading...';
 $string['error'] = 'An error occurred';

@@ -212,4 +212,40 @@ if ($hassiteconfig) {
             1
         ));
     }
+
+    // =============================================
+    // SDMS INTEGRATION
+    // =============================================
+    $settings->add(new admin_setting_heading(
+        'local_elby_dashboard/sdmsheading',
+        get_string('sdmsheading', 'local_elby_dashboard'),
+        get_string('sdmsheading_desc', 'local_elby_dashboard')
+    ));
+
+    // SDMS API URL.
+    $settings->add(new admin_setting_configtext(
+        'local_elby_dashboard/sdms_api_url',
+        get_string('sdms_api_url', 'local_elby_dashboard'),
+        get_string('sdms_api_url_desc', 'local_elby_dashboard'),
+        '',
+        PARAM_URL
+    ));
+
+    // SDMS Timeout.
+    $settings->add(new admin_setting_configtext(
+        'local_elby_dashboard/sdms_timeout',
+        get_string('sdms_timeout', 'local_elby_dashboard'),
+        get_string('sdms_timeout_desc', 'local_elby_dashboard'),
+        '30',
+        PARAM_INT
+    ));
+
+    // SDMS Cache TTL.
+    $settings->add(new admin_setting_configtext(
+        'local_elby_dashboard/sdms_cache_ttl',
+        get_string('sdms_cache_ttl', 'local_elby_dashboard'),
+        get_string('sdms_cache_ttl_desc', 'local_elby_dashboard'),
+        '604800',
+        PARAM_INT
+    ));
 }

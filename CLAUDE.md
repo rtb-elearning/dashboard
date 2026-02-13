@@ -4,7 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-`local_rtbdashboard` is a Moodle 5.0+ local plugin that provides an analytics dashboard for the Rwanda TVET Board e-learning platform. It uses **Preact** with **TypeScript** for the frontend and **Vite** to compile AMD-compatible JavaScript modules for Moodle's RequireJS system.
+`local_elby_dashboard` is a Moodle 5.0+ local plugin that provides an analytics dashboard for the Rwanda TVET Board e-learning platform. It uses **Preact** with **TypeScript** for the frontend and **Vite** to compile AMD-compatible JavaScript modules for Moodle's RequireJS system.
+
+## Technical Design Specification (TDS)
+
+The TDS lives in `docs/tds/` (14 files). **Always check the TDS before implementing a feature, and update the relevant TDS sections if any implementation changes the design.** Keep the TDS in sync with the code at all times.
 
 ## Development Commands
 
@@ -55,14 +59,21 @@ The `excludeFromEntries` array in `vite.config.ts` controls which files are entr
 
 | File | Purpose |
 |------|---------|
-| `version.php` | Plugin metadata (component name: `local_rtbdashboard`) |
+| `version.php` | Plugin metadata (component name: `local_elby_dashboard`) |
 | `db/access.php` | Capability definitions (`view`, `viewreports`, `manage`) |
+| `db/services.php` | Web service function definitions |
+| `db/install.xml` | Database schema (12 SDMS cache tables) |
 | `lib.php` | Navigation hooks (`extend_navigation`, `extend_settings_navigation`) |
 | `settings.php` | Admin settings page registration |
-| `lang/en/local_rtbdashboard.php` | Language strings |
+| `lang/en/local_elby_dashboard.php` | Language strings |
 | `templates/root.mustache` | Mustache template with skeleton loading UI |
 | `index.php` | Main dashboard page |
 | `admin/index.php` | Admin-only dashboard with extended stats |
+| `classes/sdms_client.php` | SDMS API HTTP client (no auth, IP whitelist) |
+| `classes/sync_service.php` | Cache-first sync orchestrator |
+| `classes/external/sdms.php` | SDMS web service endpoints |
+| `classes/external/completion.php` | Completion stats web service |
+| `classes/external/course_report.php` | Course report web service |
 
 ### Data Flow
 
@@ -74,9 +85,9 @@ The `excludeFromEntries` array in `vite.config.ts` controls which files are entr
 
 ## Capabilities
 
-- `local/rtbdashboard:view` - View dashboard (students, teachers, managers)
-- `local/rtbdashboard:viewreports` - View detailed reports (teachers, managers)
-- `local/rtbdashboard:manage` - Manage settings (managers only)
+- `local/elby_dashboard:view` - View dashboard (students, teachers, managers)
+- `local/elby_dashboard:viewreports` - View detailed reports (teachers, managers)
+- `local/elby_dashboard:manage` - Manage settings (managers only)
 
 ## Adding New Components
 
