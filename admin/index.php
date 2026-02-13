@@ -181,6 +181,9 @@ $admindata = [
 // Add capability-based menu visibility.
 $themeconfig['menuVisibility']['schools'] = true;
 $themeconfig['menuVisibility']['students'] = true;
+$themeconfig['menuVisibility']['teachers'] = true;
+$themeconfig['menuVisibility']['traffic'] = true;
+$themeconfig['menuVisibility']['accesslog'] = true;
 $themeconfig['menuVisibility']['admin'] = true;
 
 // Prepare data for template.

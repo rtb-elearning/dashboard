@@ -158,7 +158,7 @@ $string['sdms_cache_ttl'] = 'Cache TTL';
 $string['sdms_cache_ttl_desc'] = 'Time-to-live for cached SDMS data in seconds. Default: 604800 (7 days)';
 
 // SDMS error messages.
-$string['sdmsapierror'] = 'SDMS API error: {$a}';
+$string['sdmsapierror'] = '{$a}';
 $string['nosdmsid'] = 'User does not have an SDMS ID configured';
 $string['sdmsnotfound'] = 'Record not found in SDMS';
 $string['sdmssyncfailed'] = 'Failed to sync from SDMS: {$a}';
@@ -239,6 +239,89 @@ $string['search_students'] = 'Search students...';
 $string['search_schools'] = 'Search schools...';
 $string['no_schools_found'] = 'No schools found';
 $string['no_students_found'] = 'No students found';
+
+// Teacher list strings.
+$string['teacher_list'] = 'Teacher List';
+
+// Traffic report strings.
+$string['traffic_report'] = 'Platform Traffic';
+
+// Access log strings.
+$string['access_log'] = 'Access Log';
+
+// Trades report strings.
+$string['trades_report'] = 'Trades Report';
+
+// =============================================
+// PROFILE SDMS INFORMATION
+// =============================================
+$string['profile_sdms_category'] = 'SDMS Information';
+$string['profile_sdms_id'] = 'SDMS ID';
+$string['profile_user_type'] = 'User Type';
+$string['profile_school'] = 'School';
+$string['profile_program'] = 'Program';
+$string['profile_position'] = 'Position';
+$string['profile_gender'] = 'Gender';
+$string['profile_status'] = 'Status';
+$string['profile_academic_year'] = 'Academic Year';
+$string['profile_link_own'] = 'Link your SDMS account';
+$string['profile_link_admin'] = 'Link this user to SDMS';
+
+// =============================================
+// SELF-LINK SDMS (for existing users)
+// =============================================
+$string['self_link_title'] = 'Link SDMS Account';
+$string['self_link_description'] = 'Link your Moodle account to your SDMS record to access the full dashboard features.';
+$string['self_link_step1_title'] = 'Enter Your SDMS Code';
+$string['self_link_step2_title'] = 'Confirm Your Information';
+$string['self_link_confirm'] = 'Confirm & Link Account';
+$string['self_link_success_title'] = 'Account Linked!';
+$string['self_link_success_msg'] = 'Your Moodle account has been successfully linked to your SDMS record.';
+$string['self_link_go_dashboard'] = 'Go to Dashboard';
+$string['self_link_prompt'] = 'Your account is not linked to SDMS. <a href="{$a}">Link your SDMS account</a> to access full features.';
+$string['sdms_already_linked'] = 'Your account is already linked to SDMS.';
+$string['sdms_code_taken'] = 'This SDMS code is already linked to another account.';
+$string['sdms_code_taken_title'] = 'SDMS Code Already Linked';
+
+// =============================================
+// ADMIN BULK LINK
+// =============================================
+$string['bulk_link_title'] = 'Bulk SDMS Link';
+$string['bulk_link_description'] = 'Upload a CSV file to link multiple Moodle users to their SDMS records at once.';
+$string['bulk_link_upload_header'] = 'Upload CSV File';
+$string['bulk_link_csvfile'] = 'CSV File';
+$string['bulk_link_delimiter'] = 'Delimiter';
+$string['bulk_link_delimiter_comma'] = 'Comma (,)';
+$string['bulk_link_delimiter_semicolon'] = 'Semicolon (;)';
+$string['bulk_link_delimiter_tab'] = 'Tab';
+$string['bulk_link_upload_btn'] = 'Upload & Process';
+$string['bulk_link_csv_help'] = 'The CSV file must contain three columns: <strong>username</strong>, <strong>sdms_code</strong>, and <strong>role</strong> (student or staff).';
+$string['bulk_link_download_template'] = 'Download sample CSV template';
+$string['bulk_link_invalid_csv'] = 'Failed to parse the CSV file. Please check the format.';
+$string['bulk_link_missing_columns'] = 'CSV must contain columns: username, sdms_code, role';
+$string['bulk_link_empty_fields'] = 'Row has empty required fields.';
+$string['bulk_link_invalid_role'] = 'Role must be "student" or "staff".';
+$string['bulk_link_user_not_found'] = 'Moodle user not found.';
+$string['bulk_link_already_linked'] = 'User already linked to SDMS.';
+$string['bulk_link_success'] = 'Successfully linked.';
+$string['bulk_link_results'] = 'Processing Results';
+$string['bulk_link_results_summary'] = '{$a->success} linked successfully, {$a->error} errors, {$a->skipped} skipped.';
+$string['bulk_link_col_row'] = 'Row';
+$string['bulk_link_col_username'] = 'Username';
+$string['bulk_link_col_sdms_code'] = 'SDMS Code';
+$string['bulk_link_col_status'] = 'Status';
+$string['bulk_link_col_message'] = 'Message';
+
+// School override strings.
+$string['change_school'] = 'Change School';
+$string['school_updated'] = 'School updated successfully';
+$string['school_code_not_found'] = 'School code not found';
+$string['select_school'] = 'Select school';
+
+// School detail demographics strings.
+$string['people_overview'] = 'People Overview';
+$string['age_distribution'] = 'Student Age Distribution';
+$string['school_structure'] = 'School Structure';
 
 // General strings.
 $string['loading'] = 'Loading...';

@@ -149,6 +149,19 @@
         <FIELD NAME="program" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false" COMMENT="Combination description from SDMS"/>
         <FIELD NAME="program_code" TYPE="char" LENGTH="50" NOTNULL="false" SEQUENCE="false" COMMENT="combinationCode from SDMS"/>
         <FIELD NAME="registration_date" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="Unix timestamp of SDMS registrationDate"/>
+        <FIELD NAME="gender" TYPE="char" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="MALE or FEMALE from SDMS"/>
+        <FIELD NAME="date_of_birth" TYPE="char" LENGTH="20" NOTNULL="false" SEQUENCE="false" COMMENT="ISO date string from SDMS e.g. 2008-07-24"/>
+        <FIELD NAME="study_level" TYPE="char" LENGTH="50" NOTNULL="false" SEQUENCE="false" COMMENT="TVET, OL, AL from SDMS"/>
+        <FIELD NAME="class_grade" TYPE="char" LENGTH="100" NOTNULL="false" SEQUENCE="false" COMMENT="Level 3, SENIOR 5, etc."/>
+        <FIELD NAME="grade_code" TYPE="char" LENGTH="50" NOTNULL="false" SEQUENCE="false" COMMENT="SDMS gradeCode"/>
+        <FIELD NAME="class_group_name" TYPE="char" LENGTH="100" NOTNULL="false" SEQUENCE="false" COMMENT="Denormalized class name e.g. L3 ELT"/>
+        <FIELD NAME="parent_guardian_name" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="parent_guardian_nid" TYPE="char" LENGTH="50" NOTNULL="false" SEQUENCE="false" COMMENT="Parent national ID"/>
+        <FIELD NAME="address" TYPE="text" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="emergency_contact_person" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="emergency_contact_number" TYPE="char" LENGTH="50" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="inactive_reason" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false"/>
+        <FIELD NAME="sdms_modified_since" TYPE="char" LENGTH="50" NOTNULL="false" SEQUENCE="false" COMMENT="SDMS modifiedSince timestamp for sync optimization"/>
         <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
         <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
       </FIELDS>
@@ -160,6 +173,8 @@
       <INDEXES>
         <INDEX NAME="idx_classid" UNIQUE="false" FIELDS="classid"/>
         <INDEX NAME="idx_program_code" UNIQUE="false" FIELDS="program_code"/>
+        <INDEX NAME="idx_gender" UNIQUE="false" FIELDS="gender"/>
+        <INDEX NAME="idx_grade_code" UNIQUE="false" FIELDS="grade_code"/>
       </INDEXES>
     </TABLE>
 
@@ -168,6 +183,13 @@
         <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
         <FIELD NAME="sdms_userid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="FK to elby_sdms_users.id"/>
         <FIELD NAME="position" TYPE="char" LENGTH="100" NOTNULL="false" SEQUENCE="false" COMMENT="e.g. Class Teacher, Head of Department"/>
+        <FIELD NAME="gender" TYPE="char" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="MALE or FEMALE from SDMS"/>
+        <FIELD NAME="official_document_id" TYPE="char" LENGTH="50" NOTNULL="false" SEQUENCE="false" COMMENT="National ID from SDMS"/>
+        <FIELD NAME="mobile_phone" TYPE="char" LENGTH="20" NOTNULL="false" SEQUENCE="false" COMMENT="mobilePhoneNumber from SDMS"/>
+        <FIELD NAME="company_email" TYPE="char" LENGTH="255" NOTNULL="false" SEQUENCE="false" COMMENT="companyEmail from SDMS"/>
+        <FIELD NAME="employment_status" TYPE="char" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="employmentStatus from SDMS"/>
+        <FIELD NAME="employment_start_date" TYPE="char" LENGTH="20" NOTNULL="false" SEQUENCE="false" COMMENT="ISO date from SDMS"/>
+        <FIELD NAME="employment_end_date" TYPE="char" LENGTH="20" NOTNULL="false" SEQUENCE="false" COMMENT="ISO date from SDMS, null if still employed"/>
         <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
         <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
       </FIELDS>
@@ -175,6 +197,9 @@
         <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
         <KEY NAME="fk_sdms_userid" TYPE="foreign-unique" FIELDS="sdms_userid" REFTABLE="elby_sdms_users" REFFIELDS="id"/>
       </KEYS>
+      <INDEXES>
+        <INDEX NAME="idx_gender" UNIQUE="false" FIELDS="gender"/>
+      </INDEXES>
     </TABLE>
 
     <TABLE NAME="elby_staff_subjects" COMMENT="Teacher subject/speciality assignments from SDMS">

@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Elby Dashboard courses report page.
+ * Elby Dashboard teacher list page.
  *
  * @package    local_elby_dashboard
  * @copyright  2025 Rwanda TVET Board
@@ -25,14 +25,8 @@
 require_once('../../config.php');
 require_once($CFG->dirroot . '/local/elby_dashboard/lib.php');
 
-use local_elby_dashboard\course_report_helper;
-
-// Get optional course ID parameter.
-$courseid = optional_param('courseid', 0, PARAM_INT);
-
-// Get optional academic year parameter.
-// Academic year is represented by the start year (e.g., 2024 for 2024-2025 academic year).
-$academicyear = optional_param('year', 0, PARAM_INT);
+// Get optional parameters.
+$schoolcode = optional_param('school_code', '', PARAM_TEXT);
 
 // Require login.
 require_login();
@@ -44,46 +38,39 @@ $PAGE->set_context($context);
 // Check capability.
 require_capability('local/elby_dashboard:viewreports', $context);
 
-$urlparams = ['courseid' => $courseid];
-if ($academicyear > 0) {
-    $urlparams['year'] = $academicyear;
+$urlparams = [];
+if (!empty($schoolcode)) {
+    $urlparams['school_code'] = $schoolcode;
 }
-$PAGE->set_url(new moodle_url('/local/elby_dashboard/courses.php', $urlparams));
+$PAGE->set_url(new moodle_url('/local/elby_dashboard/teachers.php', $urlparams));
 $PAGE->set_pagelayout('standard');
-$PAGE->set_title(get_string('page_title', 'local_elby_dashboard') . ' - ' . get_string('courses_report', 'local_elby_dashboard'));
+$PAGE->set_title(get_string('page_title', 'local_elby_dashboard') . ' - ' .
+    get_string('teacher_list', 'local_elby_dashboard'));
 $PAGE->set_heading(get_string('page_heading', 'local_elby_dashboard'));
 
-// Add body classes for plugin-specific page styling.
+// Add body classes.
 $PAGE->add_body_class('local-elby-dashboard-plugin');
 $PAGE->add_body_class('local-elby-dashboard-page');
-$PAGE->add_body_class('local-elby-dashboard-courses');
+$PAGE->add_body_class('local-elby-dashboard-teachers');
 
-// Load custom CSS.
+// Load CSS and JS.
 $PAGE->requires->css('/local/elby_dashboard/styles.css');
-
-// Load custom JavaScript module.
 $PAGE->requires->js_call_amd('local_elby_dashboard/dashboard', 'init');
 
-// Add breadcrumb navigation.
+// Breadcrumbs.
 $PAGE->navbar->add(get_string('pluginname', 'local_elby_dashboard'), new moodle_url('/local/elby_dashboard/index.php'));
-$PAGE->navbar->add(get_string('courses_report', 'local_elby_dashboard'));
+$PAGE->navbar->add(get_string('teacher_list', 'local_elby_dashboard'));
 
 // Get sidenav configuration.
 $sidenavtitle = get_config('local_elby_dashboard', 'sidenavtitle') ?: 'Dashboard';
 $sidenavlogourl = '';
 
-// Get logo file URL if it exists.
 $fs = get_file_storage();
 $files = $fs->get_area_files($context->id, 'local_elby_dashboard', 'logo', 0, 'sortorder', false);
 if ($files) {
     $file = reset($files);
     $sidenavlogourl = moodle_url::make_pluginfile_url(
-        $context->id,
-        'local_elby_dashboard',
-        'logo',
-        0,
-        '/',
-        $file->get_filename()
+        $context->id, 'local_elby_dashboard', 'logo', 0, '/', $file->get_filename()
     )->out();
 }
 
@@ -92,9 +79,11 @@ $sidenavconfig = [
     'logoUrl' => $sidenavlogourl ?: null,
 ];
 
-// Get theme configuration.
+// Get theme configuration with capability-based menu items.
+$isadmin = has_capability('moodle/site:config', $context);
+$canviewreports = has_capability('local/elby_dashboard:viewreports', $context);
+
 $themeconfig = [
-    // Colors.
     'sidenavAccentColor' => get_config('local_elby_dashboard', 'sidenavaccentcolor') ?: '#005198',
     'statCard1Color' => get_config('local_elby_dashboard', 'statcard1color') ?: '#cffafe',
     'statCard2Color' => get_config('local_elby_dashboard', 'statcard2color') ?: '#fef3c7',
@@ -102,11 +91,9 @@ $themeconfig = [
     'statCard4Color' => get_config('local_elby_dashboard', 'statcard4color') ?: '#dcfce7',
     'chartPrimaryColor' => get_config('local_elby_dashboard', 'chartprimarycolor') ?: '#22d3ee',
     'chartSecondaryColor' => get_config('local_elby_dashboard', 'chartsecondarycolor') ?: '#a78bfa',
-    // Header options.
     'showSearchBar' => (bool) (get_config('local_elby_dashboard', 'showsearchbar') ?? 1),
     'showNotifications' => (bool) (get_config('local_elby_dashboard', 'shownotifications') ?? 1),
     'showUserProfile' => (bool) (get_config('local_elby_dashboard', 'showuserprofile') ?? 1),
-    // Menu visibility.
     'menuVisibility' => [
         'courses' => (bool) (get_config('local_elby_dashboard', 'showmenu_courses') ?? 1),
         'presence' => (bool) (get_config('local_elby_dashboard', 'showmenu_presence') ?? 1),
@@ -116,16 +103,16 @@ $themeconfig = [
         'message' => (bool) (get_config('local_elby_dashboard', 'showmenu_message') ?? 1),
         'completion' => (bool) (get_config('local_elby_dashboard', 'showmenu_completion') ?? 1),
         'settings' => (bool) (get_config('local_elby_dashboard', 'showmenu_settings') ?? 1),
-        'schools' => has_capability('local/elby_dashboard:viewreports', $context),
-        'students' => has_capability('local/elby_dashboard:viewreports', $context),
-        'teachers' => has_capability('local/elby_dashboard:viewreports', $context),
-        'traffic' => has_capability('local/elby_dashboard:viewreports', $context),
-        'accesslog' => has_capability('local/elby_dashboard:viewreports', $context),
-        'admin' => has_capability('moodle/site:config', $context),
+        'schools' => $canviewreports,
+        'students' => $canviewreports,
+        'teachers' => $canviewreports,
+        'traffic' => $canviewreports,
+        'accesslog' => $canviewreports,
+        'admin' => $isadmin,
     ],
 ];
 
-// Prepare user data for Preact (via data attributes).
+// Prepare user data.
 $userroles = [];
 foreach (get_user_roles($context, $USER->id) as $role) {
     $userroles[] = $role->shortname;
@@ -139,60 +126,19 @@ $userdata = [
     'email' => $USER->email,
     'avatar' => $OUTPUT->get_generated_image_for_id($USER->id),
     'roles' => $userroles,
+    'isAdmin' => $isadmin,
+    'canManage' => has_capability('local/elby_dashboard:manage', $context),
 ];
 
-// Get list of courses.
-$coursesList = course_report_helper::get_courses_list();
-
-// Calculate available academic years (last 5 years).
-$currentyear = (int) date('Y');
-$currentmonth = (int) date('n');
-$cutoffmonth = (int) get_config('local_elby_dashboard', 'enrollment_cutoff_month') ?: 9;
-
-// Determine current academic year based on cutoff month.
-$currentacademicyear = ($currentmonth < $cutoffmonth) ? $currentyear - 1 : $currentyear;
-
-// Generate list of available academic years (current + 4 previous).
-$availableyears = [];
-for ($i = 0; $i < 5; $i++) {
-    $startyear = $currentacademicyear - $i;
-    $availableyears[] = [
-        'value' => $startyear,
-        'label' => $startyear . '-' . ($startyear + 1),
-    ];
-}
-
-// Default to current academic year if not specified.
-if ($academicyear <= 0) {
-    $academicyear = $currentacademicyear;
-}
-
-// Get course report if a course is selected.
-$courseReport = null;
-if ($courseid > 0) {
-    try {
-        $courseReport = course_report_helper::get_course_report($courseid, $academicyear);
-    } catch (Exception $e) {
-        // Handle error gracefully.
-        debugging('Error fetching course report: ' . $e->getMessage(), DEBUG_DEVELOPER);
-    }
-}
-
-// Prepare stats data.
+// Minimal stats for non-home pages.
 $statsdata = [
-    'totalCourses' => count($coursesList),
-    'totalUsers' => $DB->count_records('user', ['deleted' => 0]) - 1,
-    'totalEnrollments' => $DB->count_records('user_enrolments'),
-    'totalActivities' => $DB->count_records('course_modules'),
-];
-
-// Prepare courses report data for frontend.
-$coursesReportData = [
-    'courses_list' => $coursesList,
-    'selected_courseid' => $courseid,
-    'course_report' => $courseReport,
-    'available_years' => $availableyears,
-    'selected_year' => $academicyear,
+    'totalCourses' => 0,
+    'totalUsers' => 0,
+    'totalEnrollments' => 0,
+    'totalActivities' => 0,
+    'totalTeachers' => 0,
+    'totalStudents' => 0,
+    'teachers' => [],
 ];
 
 // Prepare data for template.
@@ -201,8 +147,8 @@ $templatecontext = [
     'stats_data_json' => json_encode($statsdata, JSON_HEX_QUOT | JSON_HEX_APOS),
     'sidenav_config_json' => json_encode($sidenavconfig, JSON_HEX_QUOT | JSON_HEX_APOS),
     'theme_config_json' => json_encode($themeconfig, JSON_HEX_QUOT | JSON_HEX_APOS),
-    'courses_report_json' => json_encode($coursesReportData, JSON_HEX_QUOT | JSON_HEX_APOS),
-    'active_page' => 'courses',
+    'active_page' => 'teachers',
+    'school_code' => $schoolcode,
 ];
 
 // Output the page.

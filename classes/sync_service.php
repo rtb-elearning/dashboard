@@ -69,10 +69,14 @@ class sync_service {
             return false;
         }
 
-        // Cascade: sync school if present.
+        // Cascade: sync school if present (non-fatal if school code is invalid).
         $schoolcode = $this->extract_school_code($data, $usertype);
         if (!empty($schoolcode)) {
-            $this->sync_school($schoolcode);
+            try {
+                $this->sync_school($schoolcode);
+            } catch (\Exception $e) {
+                debugging('School sync failed for code ' . $schoolcode . ': ' . $e->getMessage(), DEBUG_DEVELOPER);
+            }
         }
 
         // Upsert user records in a transaction.
@@ -118,10 +122,14 @@ class sync_service {
             return false;
         }
 
-        // Cascade: sync school if present.
+        // Cascade: sync school if present (non-fatal if school code is invalid).
         $schoolcode = $this->extract_school_code($data, $existing->user_type);
         if (!empty($schoolcode)) {
-            $this->sync_school($schoolcode);
+            try {
+                $this->sync_school($schoolcode);
+            } catch (\Exception $e) {
+                debugging('School sync failed for code ' . $schoolcode . ': ' . $e->getMessage(), DEBUG_DEVELOPER);
+            }
         }
 
         // Upsert user records.
@@ -256,21 +264,32 @@ class sync_service {
         $transaction = $DB->start_delegated_transaction();
 
         try {
-            // Resolve school FK.
+            // Resolve school FK from SDMS response.
             $schoolcode = $this->extract_school_code($data, $usertype);
-            $schoolid = null;
+            $newschoolid = null;
             if (!empty($schoolcode)) {
                 $school = $DB->get_record('elby_schools', ['school_code' => $schoolcode], 'id');
-                $schoolid = $school ? $school->id : null;
+                $newschoolid = $school ? $school->id : null;
+            }
+
+            // Fetch existing record early so we can preserve schoolid if SDMS returned invalid.
+            $existing = $DB->get_record('elby_sdms_users', ['userid' => $userid]);
+
+            // Only update schoolid if SDMS returned a valid school.
+            // If invalid (null), preserve the existing schoolid.
+            if ($newschoolid === null && $existing) {
+                $newschoolid = $existing->schoolid;
             }
 
             // Build base record.
+            // Map "staff" to "teacher" for consistent DB queries.
+            $storedtype = ($usertype === 'staff') ? 'teacher' : $usertype;
             $record = new \stdClass();
             $record->userid = $userid;
             $record->sdms_id = $sdmscode;
-            $record->schoolid = $schoolid;
-            $record->user_type = $usertype;
-            $record->academic_year = $data->currentAcadmicYear ?? $data->academicYear ?? null;
+            $record->schoolid = $newschoolid;
+            $record->user_type = $storedtype;
+            $record->academic_year = $data->currentAcadmicYear ?? $data->currentAcademicYear ?? $data->academicYear ?? null;
             $record->sdms_status = $data->status ?? null;
             $record->sync_status = 1;
             $record->sync_error = null;
@@ -278,7 +297,6 @@ class sync_service {
             $record->timemodified = time();
 
             // Upsert base record.
-            $existing = $DB->get_record('elby_sdms_users', ['userid' => $userid]);
             if ($existing) {
                 $record->id = $existing->id;
                 $DB->update_record('elby_sdms_users', $record);
@@ -326,6 +344,19 @@ class sync_service {
         $record->program_code = $data->combinationCode ?? null;
         $record->registration_date = !empty($data->registrationDate)
             ? strtotime($data->registrationDate) : null;
+        $record->gender = !empty($data->gender) ? strtoupper($data->gender) : null;
+        $record->date_of_birth = $data->dateOfBirth ?? null;
+        $record->study_level = $data->studyLevel ?? null;
+        $record->class_grade = $data->classGrade ?? null;
+        $record->grade_code = $data->gradeCode ?? null;
+        $record->class_group_name = $data->classGroup ?? null;
+        $record->parent_guardian_name = $data->parentGardianName ?? null;
+        $record->parent_guardian_nid = $data->parentGardianNationalId ?? null;
+        $record->address = $data->address ?? null;
+        $record->emergency_contact_person = $data->emergenceContactPerson ?? null;
+        $record->emergency_contact_number = $data->emergenceContactNumber ?? null;
+        $record->inactive_reason = $data->inactiveReason ?? null;
+        $record->sdms_modified_since = $data->modifiedSince ?? null;
         $record->timemodified = time();
 
         $existing = $DB->get_record('elby_students', ['sdms_userid' => $sdmsuserid]);
@@ -351,6 +382,13 @@ class sync_service {
         $record = new \stdClass();
         $record->sdms_userid = $sdmsuserid;
         $record->position = $data->position ?? null;
+        $record->gender = !empty($data->gender) ? strtoupper($data->gender) : null;
+        $record->official_document_id = $data->officialDocumentId ?? null;
+        $record->mobile_phone = $data->mobilePhoneNumber ?? null;
+        $record->company_email = $data->companyEmail ?? null;
+        $record->employment_status = $data->employmentStatus ?? null;
+        $record->employment_start_date = $data->employmentStartDateTime ?? null;
+        $record->employment_end_date = $data->employmentEndDate ?? null;
         $record->timemodified = time();
 
         $existing = $DB->get_record('elby_teachers', ['sdms_userid' => $sdmsuserid]);
@@ -372,11 +410,11 @@ class sync_service {
                 $subject = new \stdClass();
                 $subject->teacherid = $teacherid;
                 $subject->level_id = $spec->levelId ?? '';
-                $subject->level_name = $spec->levelName ?? '';
+                $subject->level_name = $spec->levelName ?? $spec->level ?? '';
                 $subject->combination_code = $spec->combinationCode ?? '';
-                $subject->combination_name = $spec->combinationName ?? '';
+                $subject->combination_name = $spec->combinationName ?? $spec->combination ?? '';
                 $subject->subject_code = $spec->subjectCode ?? '';
-                $subject->subject_name = $spec->subjectName ?? '';
+                $subject->subject_name = $spec->subjectName ?? $spec->subject ?? '';
                 $subject->grade_code = $spec->gradeCode ?? null;
                 $subject->grade_name = $spec->gradeName ?? null;
                 $subject->class_group = $spec->classGroup ?? null;

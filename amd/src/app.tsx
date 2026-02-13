@@ -30,6 +30,8 @@ import CoursesReport from './components/CoursesReport';
 import SchoolDirectory from './components/SchoolDirectory';
 import SchoolDetail from './components/SchoolDetail';
 import StudentList from './components/StudentList';
+import TrafficReport from './components/TrafficReport';
+import AccessLog from './components/AccessLog';
 import AdminPanel from './components/AdminPanel';
 import type { UserData, StatsData, PageId, SidenavConfig, ThemeConfig, CoursesReportData } from './types';
 
@@ -57,6 +59,9 @@ function Header({ user, activePage, themeConfig, onMenuClick }: {
         schools: 'Schools Directory',
         school_detail: 'School Detail',
         students: 'Student List',
+        teachers: 'Teacher List',
+        traffic: 'Platform Traffic',
+        accesslog: 'Access Log',
         admin: 'Admin Panel',
     };
     const pageTitle = pageTitles[activePage] || 'Dashboard';
@@ -122,7 +127,7 @@ export default function App({ user, stats, activePage, sidenavConfig, themeConfi
     const closeSidebar = () => setSidebarOpen(false);
 
     return (
-        <div className="flex min-h-screen bg-gray-50">
+        <div className="flex h-screen bg-gray-50">
             <Sidebar
                 activePage={activePage}
                 sidenavConfig={sidenavConfig}
@@ -130,9 +135,9 @@ export default function App({ user, stats, activePage, sidenavConfig, themeConfi
                 isOpen={sidebarOpen}
                 onClose={closeSidebar}
             />
-            <div className="flex-1 flex flex-col overflow-hidden">
+            <div className="flex-1 flex flex-col min-h-0">
                 <Header user={user} activePage={activePage} themeConfig={themeConfig} onMenuClick={toggleSidebar} />
-                <main className="flex-1 overflow-auto">
+                <main className="flex-1 overflow-y-auto">
                     {activePage === 'home' && <Dashboard user={user} stats={stats} themeConfig={themeConfig} />}
                     {activePage === 'completion' && <CompletionReport />}
                     {activePage === 'courses' && coursesReportData && (
@@ -140,7 +145,10 @@ export default function App({ user, stats, activePage, sidenavConfig, themeConfi
                     )}
                     {activePage === 'schools' && <SchoolDirectory />}
                     {activePage === 'school_detail' && schoolCode && <SchoolDetail schoolCode={schoolCode} />}
-                    {activePage === 'students' && <StudentList />}
+                    {activePage === 'students' && <StudentList initialSchoolCode={schoolCode} />}
+                    {activePage === 'teachers' && <StudentList userType="teacher" user={user} initialSchoolCode={schoolCode} />}
+                    {activePage === 'traffic' && <TrafficReport />}
+                    {activePage === 'accesslog' && <AccessLog />}
                     {activePage === 'admin' && <AdminPanel />}
                 </main>
             </div>

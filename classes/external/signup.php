@@ -148,7 +148,7 @@ class signup extends external_api {
                 }
             }
 
-            // Check if already registered.
+            // Check if already registered (Moodle account with SDMS code as username).
             $alreadyregistered = $DB->record_exists('user', [
                 'username' => strtolower($sdmscode),
                 'deleted' => 0,
@@ -162,11 +162,15 @@ class signup extends external_api {
                 $sdmsid = $data->staffId ?? $sdmscode;
             }
 
+            // Check if SDMS code is already linked to a Moodle user.
+            $alreadylinked = $DB->record_exists('elby_sdms_users', ['sdms_id' => $sdmsid]);
+
             return [
                 'success' => true,
                 'error' => '',
                 'found' => true,
                 'already_registered' => $alreadyregistered,
+                'already_linked' => $alreadylinked,
                 'sdms_id' => $sdmsid,
                 'user_type' => $usertype,
                 'names' => $names,
@@ -199,6 +203,7 @@ class signup extends external_api {
             'error' => new external_value(PARAM_TEXT, 'Error message'),
             'found' => new external_value(PARAM_BOOL, 'Whether SDMS record was found'),
             'already_registered' => new external_value(PARAM_BOOL, 'Whether user already has a Moodle account'),
+            'already_linked' => new external_value(PARAM_BOOL, 'Whether SDMS code is already linked to a Moodle user'),
             'sdms_id' => new external_value(PARAM_TEXT, 'SDMS identifier'),
             'user_type' => new external_value(PARAM_TEXT, 'User type'),
             'names' => new external_value(PARAM_TEXT, 'Full name from SDMS'),
@@ -437,6 +442,7 @@ class signup extends external_api {
             'error' => $error,
             'found' => false,
             'already_registered' => false,
+            'already_linked' => false,
             'sdms_id' => '',
             'user_type' => '',
             'names' => '',

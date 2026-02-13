@@ -19,14 +19,28 @@ body.local-elby-dashboard-page *{
 	padding: 0;
 	box-sizing: border-box;
 }
+
+body.local-elby-dashboard-page {
+    overflow: hidden !important;
+    height: 100vh !important;
+}
+
+body.local-elby-dashboard-page #page,
+body.local-elby-dashboard-page #page-wrapper {
+    height: 100vh !important;
+    overflow: hidden !important;
+}
+
 body.local-elby-dashboard-page .main-inner {
     max-width: 100% !important;
     margin-top: 0 !important;
     padding: 0 !important;
+    height: 100% !important;
 }
 body.local-elby-dashboard-page div[role=main]{
 	padding-right: 0 !important;
 	padding-left: 0 !important;
+    height: 100% !important;
 }
 
 body.local-elby-dashboard-page #page-header * {
@@ -40,7 +54,11 @@ body.local-elby-dashboard-page #page-header {
 }
 
 body.local-elby-dashboard-page #page-footer {
-    margin-top: 0 !important;
+    display: none !important;
+}
+
+body.local-elby-dashboard-page #page-content {
+    height: 100% !important;
 }
 
 /* ============================================
@@ -50,7 +68,7 @@ body.local-elby-dashboard-page #page-footer {
 /* Elby Dashboard - Base Styles */
 
 .local-elby-dashboard {
-    min-height: 400px;
+    height: 100% !important;
 }
 
 /* Skeleton Loading Styles */

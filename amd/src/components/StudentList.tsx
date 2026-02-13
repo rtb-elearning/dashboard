@@ -24,7 +24,7 @@
  */
 
 import { useState, useEffect } from 'preact/hooks';
-import type { StudentMetric, StudentListResponse } from '../types';
+import type { StudentMetric, StudentListResponse, UserData } from '../types';
 
 // @ts-ignore
 declare const require: (deps: string[], callback: (...args: any[]) => void) => void;
@@ -78,23 +78,46 @@ function SortIcon({ field, currentSort, currentOrder }: { field: string; current
     );
 }
 
+interface SchoolOption {
+    school_code: string;
+    school_name: string;
+}
+
 interface StudentListProps {
     initialSchoolCode?: string;
     initialCourseId?: number;
+    userType?: 'student' | 'teacher';
+    user?: UserData;
 }
 
-export default function StudentList({ initialSchoolCode = '', initialCourseId = 0 }: StudentListProps) {
+export default function StudentList({ initialSchoolCode = '', initialCourseId = 0, userType = 'student', user }: StudentListProps) {
+    const isTeacher = userType === 'teacher';
+    const canManage = isTeacher && !!user?.canManage;
     const [students, setStudents] = useState<StudentMetric[]>([]);
     const [totalCount, setTotalCount] = useState(0);
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(0);
-    const [perpage] = useState(25);
+    const [perpage] = useState(10);
     const [sort, setSort] = useState('lastname');
     const [order, setOrder] = useState('ASC');
     const [search, setSearch] = useState('');
     const [searchInput, setSearchInput] = useState('');
     const [schoolCode, setSchoolCode] = useState(initialSchoolCode);
     const [engagementLevel, setEngagementLevel] = useState('');
+
+    // School edit state (admin only).
+    const [schoolsList, setSchoolsList] = useState<SchoolOption[]>([]);
+    const [editingUserId, setEditingUserId] = useState<number | null>(null);
+    const [editingSchoolCode, setEditingSchoolCode] = useState('');
+    const [saving, setSaving] = useState(false);
+
+    // Fetch schools list for admin dropdown.
+    useEffect(() => {
+        if (!canManage) return;
+        ajaxCall('local_elby_dashboard_get_schools_list', {})
+            .then((result: { schools: SchoolOption[] }) => setSchoolsList(result.schools))
+            .catch((err: any) => console.error('Failed to load schools list:', err));
+    }, [canManage]);
 
     useEffect(() => {
         loadStudents();
@@ -112,6 +135,7 @@ export default function StudentList({ initialSchoolCode = '', initialCourseId = 
                 perpage,
                 search,
                 engagement_level: engagementLevel,
+                user_type: userType,
             });
             setStudents(result.students);
             setTotalCount(result.total_count);
@@ -119,6 +143,31 @@ export default function StudentList({ initialSchoolCode = '', initialCourseId = 
             console.error('Failed to load students:', err);
         } finally {
             setLoading(false);
+        }
+    }
+
+    async function handleSaveSchool(userid: number) {
+        if (!editingSchoolCode) return;
+        setSaving(true);
+        try {
+            const result = await ajaxCall('local_elby_dashboard_update_user_school', {
+                userid,
+                school_code: editingSchoolCode,
+            });
+            if (result.success) {
+                setStudents(prev => prev.map(s =>
+                    s.userid === userid
+                        ? { ...s, school_code: result.school_code, school_name: result.school_name }
+                        : s
+                ));
+                setEditingUserId(null);
+            } else {
+                console.error('Failed to update school:', result.error);
+            }
+        } catch (err) {
+            console.error('Failed to update school:', err);
+        } finally {
+            setSaving(false);
         }
     }
 
@@ -138,11 +187,14 @@ export default function StudentList({ initialSchoolCode = '', initialCourseId = 
     }
 
     function handleExportCsv() {
-        const headers = ['Name', 'SDMS ID', 'Program', 'School Name', 'School Code', 'Last Active', 'Active Days', 'Total Actions', 'Quiz Avg', 'Progress', 'Status'];
+        const roleLabel = isTeacher ? 'Position' : 'Program';
+        const headers = ['Name', 'SDMS ID', roleLabel, 'Gender', ...(isTeacher ? [] : ['Age']), 'School Name', 'School Code', 'Last Active', 'Active Days', 'Total Actions', 'Quiz Avg', 'Progress', 'Status'];
         const rows = students.map(s => [
             s.fullname,
             s.sdms_id,
-            s.program,
+            isTeacher ? (s.position || '') : (s.program || ''),
+            s.gender || '',
+            ...(isTeacher ? [] : [s.age !== null && s.age !== undefined ? String(s.age) : '']),
             s.school_name,
             s.school_code,
             s.last_access ? new Date(s.last_access * 1000).toISOString() : 'Never',
@@ -157,7 +209,7 @@ export default function StudentList({ initialSchoolCode = '', initialCourseId = 
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'student_metrics.csv';
+        a.download = isTeacher ? 'teacher_metrics.csv' : 'student_metrics.csv';
         a.click();
         URL.revokeObjectURL(url);
     }
@@ -168,11 +220,13 @@ export default function StudentList({ initialSchoolCode = '', initialCourseId = 
 
     const sortableHeader = (label: string, field: string) => (
         <th
-            className="pb-3 font-medium cursor-pointer hover:text-gray-800 select-none"
+            className="pb-3 font-medium cursor-pointer hover:text-gray-800 select-none whitespace-nowrap"
             onClick={() => handleSort(field)}
         >
-            {label}
-            <SortIcon field={field} currentSort={sort} currentOrder={order} />
+            <span className="inline-flex items-center gap-0.5">
+                {label}
+                <SortIcon field={field} currentSort={sort} currentOrder={order} />
+            </span>
         </th>
     );
 
@@ -185,7 +239,7 @@ export default function StudentList({ initialSchoolCode = '', initialCourseId = 
                     <div className="flex-1 min-w-[200px] flex gap-2">
                         <input
                             type="text"
-                            placeholder="Search students..."
+                            placeholder={isTeacher ? "Search teachers..." : "Search students..."}
                             className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                             value={searchInput}
                             onInput={(e) => setSearchInput((e.target as HTMLInputElement).value)}
@@ -239,13 +293,15 @@ export default function StudentList({ initialSchoolCode = '', initialCourseId = 
 
             {/* Table */}
             <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto p-4">
                     <table className="w-full text-sm">
                         <thead>
                             <tr className="text-left text-gray-500 border-b border-gray-100">
                                 {sortableHeader('Name', 'lastname')}
                                 <th className="pb-3 font-medium">SDMS ID</th>
-                                <th className="pb-3 font-medium">Program</th>
+                                <th className="pb-3 font-medium">{isTeacher ? 'Position' : 'Program'}</th>
+                                <th className="pb-3 font-medium">Gender</th>
+                                {!isTeacher && <th className="pb-3 font-medium">Age</th>}
                                 <th className="pb-3 font-medium">School Name</th>
                                 <th className="pb-3 font-medium">School Code</th>
                                 {sortableHeader('Last Active', 'last_access')}
@@ -260,7 +316,7 @@ export default function StudentList({ initialSchoolCode = '', initialCourseId = 
                             {loading ? (
                                 Array.from({ length: 5 }).map((_, i) => (
                                     <tr key={i} className="border-b border-gray-50">
-                                        {Array.from({ length: 11 }).map((_, j) => (
+                                        {Array.from({ length: isTeacher ? 12 : 13 }).map((_, j) => (
                                             <td key={j} className="py-3 px-2">
                                                 <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
                                             </td>
@@ -269,8 +325,8 @@ export default function StudentList({ initialSchoolCode = '', initialCourseId = 
                                 ))
                             ) : students.length === 0 ? (
                                 <tr>
-                                    <td colSpan={11} className="py-12 text-center text-gray-500">
-                                        No students found
+                                    <td colSpan={isTeacher ? 12 : 13} className="py-12 text-center text-gray-500">
+                                        {isTeacher ? 'No teachers found' : 'No students found'}
                                     </td>
                                 </tr>
                             ) : (
@@ -278,9 +334,56 @@ export default function StudentList({ initialSchoolCode = '', initialCourseId = 
                                     <tr key={student.userid} className="border-b border-gray-50 hover:bg-gray-50">
                                         <td className="py-3 px-2 font-medium text-gray-800">{student.fullname}</td>
                                         <td className="py-3 px-2 text-gray-600">{student.sdms_id}</td>
-                                        <td className="py-3 px-2 text-gray-600">{student.program || '-'}</td>
+                                        <td className="py-3 px-2 text-gray-600">{isTeacher ? (student.position || '-') : (student.program || '-')}</td>
+                                        <td className="py-3 px-2 text-gray-600">{student.gender || '-'}</td>
+                                        {!isTeacher && <td className="py-3 px-2 text-gray-600">{student.age !== null && student.age !== undefined ? student.age : '-'}</td>}
                                         <td className="py-3 px-2 text-gray-600">{student.school_name || '-'}</td>
-                                        <td className="py-3 px-2 text-gray-600">{student.school_code || '-'}</td>
+                                        <td className="py-3 px-2 text-gray-600">
+                                            {canManage && editingUserId === student.userid ? (
+                                                <div className="flex items-center gap-1">
+                                                    <select
+                                                        className="px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                                        value={editingSchoolCode}
+                                                        onChange={(e) => setEditingSchoolCode((e.target as HTMLSelectElement).value)}
+                                                        disabled={saving}
+                                                    >
+                                                        <option value="">Select school...</option>
+                                                        {schoolsList.map(s => (
+                                                            <option key={s.school_code} value={s.school_code}>
+                                                                {s.school_code} - {s.school_name}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                    <button
+                                                        onClick={() => handleSaveSchool(student.userid)}
+                                                        disabled={saving || !editingSchoolCode}
+                                                        className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                                                    >
+                                                        {saving ? '...' : 'Save'}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setEditingUserId(null)}
+                                                        disabled={saving}
+                                                        className="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50"
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                </div>
+                                            ) : canManage ? (
+                                                <button
+                                                    className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer text-left"
+                                                    onClick={() => {
+                                                        setEditingUserId(student.userid);
+                                                        setEditingSchoolCode(student.school_code || '');
+                                                    }}
+                                                    title="Click to change school"
+                                                >
+                                                    {student.school_code || '-'}
+                                                </button>
+                                            ) : (
+                                                student.school_code || '-'
+                                            )}
+                                        </td>
                                         <td className="py-3 px-2 text-gray-600">{formatTimeAgo(student.last_access)}</td>
                                         <td className="py-3 px-2 text-gray-800">{student.active_days}</td>
                                         <td className="py-3 px-2 text-gray-800">{student.total_actions}</td>

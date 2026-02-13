@@ -724,6 +724,338 @@ class sdms extends external_api {
     }
 
     // =========================================================================
+    // self_link_sdms — Let logged-in users link their own account.
+    // =========================================================================
+
+    /**
+     * Parameters for self_link_sdms.
+     */
+    public static function self_link_sdms_parameters(): external_function_parameters {
+        return new external_function_parameters([
+            'sdms_code' => new external_value(PARAM_TEXT, 'SDMS code (studentNumber or staffNumber)'),
+            'user_type' => new external_value(PARAM_TEXT, 'User type: student or staff'),
+        ]);
+    }
+
+    /**
+     * Link the current user's account to an SDMS record.
+     *
+     * @param string $sdmscode SDMS identifier.
+     * @param string $usertype "student" or "staff".
+     * @return array Result with success status.
+     */
+    public static function self_link_sdms(string $sdmscode, string $usertype): array {
+        global $USER, $DB;
+
+        $params = self::validate_parameters(
+            self::self_link_sdms_parameters(),
+            ['sdms_code' => $sdmscode, 'user_type' => $usertype]
+        );
+        $sdmscode = $params['sdms_code'];
+        $usertype = $params['user_type'];
+
+        $context = context_system::instance();
+        self::validate_context($context);
+        require_capability('local/elby_dashboard:view', $context);
+
+        // Check if user is already linked.
+        if ($DB->record_exists('elby_sdms_users', ['userid' => $USER->id])) {
+            return [
+                'success' => false,
+                'error' => get_string('sdms_already_linked', 'local_elby_dashboard'),
+                'sdms_code' => $sdmscode,
+                'timestamp' => time(),
+            ];
+        }
+
+        // Check if this SDMS code is already linked to another user.
+        if ($DB->record_exists('elby_sdms_users', ['sdms_id' => $sdmscode])) {
+            return [
+                'success' => false,
+                'error' => get_string('sdms_code_taken', 'local_elby_dashboard'),
+                'sdms_code' => $sdmscode,
+                'timestamp' => time(),
+            ];
+        }
+
+        try {
+            $syncservice = new \local_elby_dashboard\sync_service();
+            $result = $syncservice->link_user($USER->id, $sdmscode, $usertype);
+
+            return [
+                'success' => $result,
+                'error' => $result ? '' : get_string('sdmsnotfound', 'local_elby_dashboard'),
+                'sdms_code' => $sdmscode,
+                'timestamp' => time(),
+            ];
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+                'sdms_code' => $sdmscode,
+                'timestamp' => time(),
+            ];
+        }
+    }
+
+    /**
+     * Return structure for self_link_sdms.
+     */
+    public static function self_link_sdms_returns(): external_single_structure {
+        return new external_single_structure([
+            'success' => new external_value(PARAM_BOOL, 'Whether link succeeded'),
+            'error' => new external_value(PARAM_TEXT, 'Error message'),
+            'sdms_code' => new external_value(PARAM_TEXT, 'SDMS code'),
+            'timestamp' => new external_value(PARAM_INT, 'Operation timestamp'),
+        ]);
+    }
+
+    // =========================================================================
+    // search_unlinked_users — Find Moodle users without SDMS links.
+    // =========================================================================
+
+    /**
+     * Parameters for search_unlinked_users.
+     */
+    public static function search_unlinked_users_parameters(): external_function_parameters {
+        return new external_function_parameters([
+            'search' => new external_value(PARAM_TEXT, 'Search term for name/username/email'),
+            'page' => new external_value(PARAM_INT, 'Page number (0-based)', VALUE_DEFAULT, 0),
+            'perpage' => new external_value(PARAM_INT, 'Results per page', VALUE_DEFAULT, 20),
+        ]);
+    }
+
+    /**
+     * Search for Moodle users not linked to SDMS.
+     *
+     * @param string $search Search term.
+     * @param int $page Page number.
+     * @param int $perpage Results per page.
+     * @return array List of unlinked users.
+     */
+    public static function search_unlinked_users(string $search, int $page = 0, int $perpage = 20): array {
+        global $DB;
+
+        $params = self::validate_parameters(
+            self::search_unlinked_users_parameters(),
+            ['search' => $search, 'page' => $page, 'perpage' => $perpage]
+        );
+        $search = $params['search'];
+        $page = $params['page'];
+        $perpage = min($params['perpage'], 100);
+
+        $context = context_system::instance();
+        self::validate_context($context);
+        require_capability('local/elby_dashboard:manage', $context);
+
+        $searchterm = '%' . $DB->sql_like_escape($search) . '%';
+
+        $sql = "SELECT u.id, u.username, u.firstname, u.lastname, u.email
+                  FROM {user} u
+             LEFT JOIN {elby_sdms_users} su ON su.userid = u.id
+                 WHERE su.id IS NULL
+                   AND u.deleted = 0
+                   AND u.suspended = 0
+                   AND u.id > 2
+                   AND (" . $DB->sql_like('u.firstname', ':s1', false) . "
+                    OR " . $DB->sql_like('u.lastname', ':s2', false) . "
+                    OR " . $DB->sql_like('u.username', ':s3', false) . "
+                    OR " . $DB->sql_like('u.email', ':s4', false) . ")
+              ORDER BY u.lastname, u.firstname";
+
+        $sqlparams = [
+            's1' => $searchterm,
+            's2' => $searchterm,
+            's3' => $searchterm,
+            's4' => $searchterm,
+        ];
+
+        // Count total.
+        $countsql = "SELECT COUNT(u.id)
+                       FROM {user} u
+                  LEFT JOIN {elby_sdms_users} su ON su.userid = u.id
+                      WHERE su.id IS NULL
+                        AND u.deleted = 0
+                        AND u.suspended = 0
+                        AND u.id > 2
+                        AND (" . $DB->sql_like('u.firstname', ':s1', false) . "
+                         OR " . $DB->sql_like('u.lastname', ':s2', false) . "
+                         OR " . $DB->sql_like('u.username', ':s3', false) . "
+                         OR " . $DB->sql_like('u.email', ':s4', false) . ")";
+
+        $totalcount = $DB->count_records_sql($countsql, $sqlparams);
+        $records = $DB->get_records_sql($sql, $sqlparams, $page * $perpage, $perpage);
+
+        $users = [];
+        foreach ($records as $record) {
+            $users[] = [
+                'userid' => (int) $record->id,
+                'fullname' => fullname($record),
+                'username' => $record->username,
+                'email' => $record->email,
+            ];
+        }
+
+        return [
+            'users' => $users,
+            'total_count' => (int) $totalcount,
+            'page' => $page,
+            'perpage' => $perpage,
+        ];
+    }
+
+    /**
+     * Return structure for search_unlinked_users.
+     */
+    public static function search_unlinked_users_returns(): external_single_structure {
+        return new external_single_structure([
+            'users' => new external_multiple_structure(
+                new external_single_structure([
+                    'userid' => new external_value(PARAM_INT, 'Moodle user ID'),
+                    'fullname' => new external_value(PARAM_TEXT, 'Full name'),
+                    'username' => new external_value(PARAM_TEXT, 'Username'),
+                    'email' => new external_value(PARAM_TEXT, 'Email address'),
+                ])
+            ),
+            'total_count' => new external_value(PARAM_INT, 'Total matching users'),
+            'page' => new external_value(PARAM_INT, 'Current page'),
+            'perpage' => new external_value(PARAM_INT, 'Results per page'),
+        ]);
+    }
+
+    // =========================================================================
+    // update_user_school — Admin override of a teacher's school code.
+    // =========================================================================
+
+    /**
+     * Parameters for update_user_school.
+     */
+    public static function update_user_school_parameters(): external_function_parameters {
+        return new external_function_parameters([
+            'userid' => new external_value(PARAM_INT, 'Moodle user ID'),
+            'school_code' => new external_value(PARAM_TEXT, 'School code from elby_schools'),
+        ]);
+    }
+
+    /**
+     * Manually set a user's school code (admin override).
+     *
+     * @param int $userid Moodle user ID.
+     * @param string $schoolcode School code.
+     * @return array Result with success status.
+     */
+    public static function update_user_school(int $userid, string $schoolcode): array {
+        global $DB;
+
+        $params = self::validate_parameters(
+            self::update_user_school_parameters(),
+            ['userid' => $userid, 'school_code' => $schoolcode]
+        );
+        $userid = $params['userid'];
+        $schoolcode = $params['school_code'];
+
+        $context = context_system::instance();
+        self::validate_context($context);
+        require_capability('local/elby_dashboard:manage', $context);
+
+        // Validate school exists.
+        $school = $DB->get_record('elby_schools', ['school_code' => $schoolcode], 'id, school_code, school_name');
+        if (!$school) {
+            return [
+                'success' => false,
+                'error' => 'School code not found',
+                'school_code' => $schoolcode,
+                'school_name' => '',
+            ];
+        }
+
+        // Validate user exists in elby_sdms_users.
+        $sdmsuser = $DB->get_record('elby_sdms_users', ['userid' => $userid]);
+        if (!$sdmsuser) {
+            return [
+                'success' => false,
+                'error' => 'User not linked to SDMS',
+                'school_code' => $schoolcode,
+                'school_name' => '',
+            ];
+        }
+
+        // Update schoolid.
+        $sdmsuser->schoolid = $school->id;
+        $sdmsuser->timemodified = time();
+        $DB->update_record('elby_sdms_users', $sdmsuser);
+
+        return [
+            'success' => true,
+            'error' => '',
+            'school_code' => $school->school_code,
+            'school_name' => $school->school_name,
+        ];
+    }
+
+    /**
+     * Return structure for update_user_school.
+     */
+    public static function update_user_school_returns(): external_single_structure {
+        return new external_single_structure([
+            'success' => new external_value(PARAM_BOOL, 'Whether update succeeded'),
+            'error' => new external_value(PARAM_TEXT, 'Error message'),
+            'school_code' => new external_value(PARAM_TEXT, 'School code'),
+            'school_name' => new external_value(PARAM_TEXT, 'School name'),
+        ]);
+    }
+
+    // =========================================================================
+    // get_schools_list — List all schools for dropdown.
+    // =========================================================================
+
+    /**
+     * Parameters for get_schools_list.
+     */
+    public static function get_schools_list_parameters(): external_function_parameters {
+        return new external_function_parameters([]);
+    }
+
+    /**
+     * Get all schools ordered by name (for dropdown selection).
+     *
+     * @return array List of schools.
+     */
+    public static function get_schools_list(): array {
+        global $DB;
+
+        $context = context_system::instance();
+        self::validate_context($context);
+        require_capability('local/elby_dashboard:manage', $context);
+
+        $schools = $DB->get_records('elby_schools', null, 'school_name ASC', 'id, school_code, school_name');
+
+        $result = [];
+        foreach ($schools as $school) {
+            $result[] = [
+                'school_code' => $school->school_code,
+                'school_name' => $school->school_name,
+            ];
+        }
+
+        return ['schools' => $result];
+    }
+
+    /**
+     * Return structure for get_schools_list.
+     */
+    public static function get_schools_list_returns(): external_single_structure {
+        return new external_single_structure([
+            'schools' => new external_multiple_structure(
+                new external_single_structure([
+                    'school_code' => new external_value(PARAM_TEXT, 'School code'),
+                    'school_name' => new external_value(PARAM_TEXT, 'School name'),
+                ])
+            ),
+        ]);
+    }
+
+    // =========================================================================
     // Helper methods.
     // =========================================================================
 

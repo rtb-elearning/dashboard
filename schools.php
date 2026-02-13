@@ -112,6 +112,9 @@ $themeconfig = [
         'settings' => (bool) (get_config('local_elby_dashboard', 'showmenu_settings') ?? 1),
         'schools' => $canviewreports,
         'students' => $canviewreports,
+        'teachers' => $canviewreports,
+        'traffic' => $canviewreports,
+        'accesslog' => $canviewreports,
         'admin' => $isadmin,
     ],
 ];
@@ -154,8 +157,40 @@ $statsdata = [
 $schoolsdata = [];
 if ($activepage === 'schools') {
     $schools = $DB->get_records('elby_schools', null, 'school_name ASC');
+
+    // Get live user counts per school from elby_sdms_users (always available).
+    $usercounts = $DB->get_records_sql(
+        "SELECT schoolid,
+                SUM(CASE WHEN user_type = 'student' THEN 1 ELSE 0 END) AS student_count,
+                SUM(CASE WHEN user_type = 'teacher' THEN 1 ELSE 0 END) AS teacher_count,
+                COUNT(*) AS total_users
+         FROM {elby_sdms_users}
+         GROUP BY schoolid"
+    );
+
+    // Get active user count per school (accessed within last 7 days).
+    $activethreshold = time() - (7 * 86400);
+    $activecounts = $DB->get_records_sql(
+        "SELECT su.schoolid, COUNT(DISTINCT su.userid) AS active_count
+         FROM {elby_sdms_users} su
+         JOIN {user} u ON u.id = su.userid
+         WHERE u.lastaccess >= :threshold AND u.deleted = 0
+         GROUP BY su.schoolid",
+        ['threshold' => $activethreshold]
+    );
+
+    // Get at-risk count per school (no access in 7+ days or never).
+    $atriskcounts = $DB->get_records_sql(
+        "SELECT su.schoolid, COUNT(DISTINCT su.userid) AS atrisk_count
+         FROM {elby_sdms_users} su
+         JOIN {user} u ON u.id = su.userid
+         WHERE (u.lastaccess < :threshold OR u.lastaccess IS NULL) AND u.deleted = 0
+         GROUP BY su.schoolid",
+        ['threshold' => $activethreshold]
+    );
+
     foreach ($schools as $school) {
-        // Get metrics for this school.
+        // Get pre-computed metrics (may be empty if tasks haven't run).
         $metrics = $DB->get_records_sql(
             "SELECT * FROM {elby_school_metrics}
              WHERE schoolid = :schoolid AND courseid = 0 AND period_type = 'weekly'
@@ -163,15 +198,26 @@ if ($activepage === 'schools') {
             ['schoolid' => $school->id]
         );
         $m = reset($metrics);
+
+        // Use live counts from elby_sdms_users, falling back to metrics if available.
+        $uc = $usercounts[$school->id] ?? null;
+        $ac = $activecounts[$school->id] ?? null;
+        $arc = $atriskcounts[$school->id] ?? null;
+
+        $enrolled = $uc ? (int) $uc->student_count : ($m ? (int) $m->total_enrolled : 0);
+        $active = $ac ? (int) $ac->active_count : ($m ? (int) $m->total_active : 0);
+        $atrisk = $arc ? (int) $arc->atrisk_count : ($m ? (int) $m->at_risk_count : 0);
+
         $parsed = local_elby_dashboard_parse_region_code($school->region_code ?? '');
         $schoolsdata[] = [
             'school_code' => $school->school_code,
             'school_name' => $school->school_name,
             'region_code' => $school->region_code ?? '',
-            'total_enrolled' => $m ? (int) $m->total_enrolled : 0,
-            'total_active' => $m ? (int) $m->total_active : 0,
-            'at_risk_count' => $m ? (int) $m->at_risk_count : 0,
+            'total_enrolled' => $enrolled,
+            'total_active' => $active,
+            'at_risk_count' => $atrisk,
             'avg_quiz_score' => $m && $m->avg_quiz_score !== null ? round((float) $m->avg_quiz_score, 1) : null,
+            'avg_actions_per_student' => $m && $m->avg_actions_per_student !== null ? round((float) $m->avg_actions_per_student, 1) : 0,
             'province' => $parsed['province'],
             'district' => $parsed['district'],
         ];

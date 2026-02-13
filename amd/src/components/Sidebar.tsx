@@ -36,6 +36,9 @@ const menuItems = [
     { id: 'home', name: 'Dashboard', icon: 'dashboard', url: '/local/elby_dashboard/index.php' },
     { id: 'schools', name: 'Schools', icon: 'pedagogy', url: '/local/elby_dashboard/schools.php', capability: 'viewreports' },
     { id: 'students', name: 'Students', icon: 'communication', url: '/local/elby_dashboard/students.php', capability: 'viewreports' },
+    { id: 'teachers', name: 'Teachers', icon: 'presence', url: '/local/elby_dashboard/teachers.php', capability: 'viewreports' },
+    { id: 'traffic', name: 'Traffic', icon: 'event', url: '/local/elby_dashboard/traffic.php', capability: 'viewreports' },
+    { id: 'accesslog', name: 'Access Log', icon: 'courses', url: '/local/elby_dashboard/accesslog.php', capability: 'viewreports' },
     { id: 'admin', name: 'Admin Panel', icon: 'settings', url: '/local/elby_dashboard/admin/index.php', capability: 'admin' },
 ];
 
@@ -127,8 +130,8 @@ export default function Sidebar({ activePage, sidenavConfig, themeConfig, isOpen
 
             {/* Sidebar */}
             <aside className={`
-                fixed lg:static inset-y-0 left-0 z-50
-                w-72 bg-gray-50 border-r border-gray-200 py-6 pr-4 overflow-y-auto min-h-screen flex flex-col
+                fixed lg:sticky inset-y-0 left-0 z-50 top-0
+                w-72 h-screen bg-gray-50 border-r border-gray-200 py-6 pr-4 overflow-y-auto flex flex-col
                 transform transition-transform duration-300 ease-in-out
                 ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
             `}>

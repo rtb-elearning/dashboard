@@ -137,6 +137,98 @@ $functions = [
         'capabilities' => 'local/elby_dashboard:viewreports',
     ],
 
+    // Trades report API.
+    'local_elby_dashboard_get_trades_report' => [
+        'classname'    => 'local_elby_dashboard\external\metrics',
+        'methodname'   => 'get_trades_report',
+        'description'  => 'Get trades/programs report with school counts',
+        'type'         => 'read',
+        'ajax'         => true,
+        'capabilities' => 'local/elby_dashboard:viewreports',
+    ],
+    'local_elby_dashboard_get_school_user_counts' => [
+        'classname'    => 'local_elby_dashboard\external\metrics',
+        'methodname'   => 'get_school_user_counts',
+        'description'  => 'Get student and teacher counts per school',
+        'type'         => 'read',
+        'ajax'         => true,
+        'capabilities' => 'local/elby_dashboard:viewreports',
+    ],
+    'local_elby_dashboard_get_school_demographics' => [
+        'classname'    => 'local_elby_dashboard\external\metrics',
+        'methodname'   => 'get_school_demographics',
+        'description'  => 'Get school demographics: gender breakdown and age distribution',
+        'type'         => 'read',
+        'ajax'         => true,
+        'capabilities' => 'local/elby_dashboard:viewreports',
+    ],
+    'local_elby_dashboard_trigger_task' => [
+        'classname'    => 'local_elby_dashboard\external\metrics',
+        'methodname'   => 'trigger_task',
+        'description'  => 'Trigger a scheduled task to run immediately',
+        'type'         => 'write',
+        'ajax'         => true,
+        'capabilities' => 'local/elby_dashboard:manage',
+    ],
+
+    // Platform traffic API.
+    'local_elby_dashboard_get_platform_traffic' => [
+        'classname'    => 'local_elby_dashboard\external\traffic',
+        'methodname'   => 'get_platform_traffic',
+        'description'  => 'Get platform traffic data grouped by period',
+        'type'         => 'read',
+        'ajax'         => true,
+        'capabilities' => 'local/elby_dashboard:viewreports',
+    ],
+
+    // User access log API.
+    'local_elby_dashboard_get_user_access_log' => [
+        'classname'    => 'local_elby_dashboard\external\access_log',
+        'methodname'   => 'get_user_access_log',
+        'description'  => 'Get paginated user access log with filters',
+        'type'         => 'read',
+        'ajax'         => true,
+        'capabilities' => 'local/elby_dashboard:viewreports',
+    ],
+
+    // SDMS self-link API (for logged-in users linking their own account).
+    'local_elby_dashboard_self_link_sdms' => [
+        'classname'    => 'local_elby_dashboard\external\sdms',
+        'methodname'   => 'self_link_sdms',
+        'description'  => 'Link the current user\'s account to an SDMS record',
+        'type'         => 'write',
+        'ajax'         => true,
+        'capabilities' => 'local/elby_dashboard:view',
+    ],
+
+    // Admin school override for teachers.
+    'local_elby_dashboard_update_user_school' => [
+        'classname'    => 'local_elby_dashboard\external\sdms',
+        'methodname'   => 'update_user_school',
+        'description'  => 'Manually set a user\'s school code (admin override)',
+        'type'         => 'write',
+        'ajax'         => true,
+        'capabilities' => 'local/elby_dashboard:manage',
+    ],
+    'local_elby_dashboard_get_schools_list' => [
+        'classname'    => 'local_elby_dashboard\external\sdms',
+        'methodname'   => 'get_schools_list',
+        'description'  => 'Get all schools for dropdown selection',
+        'type'         => 'read',
+        'ajax'         => true,
+        'capabilities' => 'local/elby_dashboard:manage',
+    ],
+
+    // Admin search for unlinked users.
+    'local_elby_dashboard_search_unlinked_users' => [
+        'classname'    => 'local_elby_dashboard\external\sdms',
+        'methodname'   => 'search_unlinked_users',
+        'description'  => 'Search for Moodle users not linked to SDMS',
+        'type'         => 'read',
+        'ajax'         => true,
+        'capabilities' => 'local/elby_dashboard:manage',
+    ],
+
     // SDMS self-registration APIs (no login required).
     'local_elby_dashboard_lookup_for_signup' => [
         'classname'     => 'local_elby_dashboard\external\signup',
@@ -172,6 +264,16 @@ $services = [
             'local_elby_dashboard_get_school_metrics',
             'local_elby_dashboard_get_student_list',
             'local_elby_dashboard_get_engagement_distribution',
+            'local_elby_dashboard_get_trades_report',
+            'local_elby_dashboard_get_school_user_counts',
+            'local_elby_dashboard_get_school_demographics',
+            'local_elby_dashboard_trigger_task',
+            'local_elby_dashboard_get_platform_traffic',
+            'local_elby_dashboard_get_user_access_log',
+            'local_elby_dashboard_self_link_sdms',
+            'local_elby_dashboard_search_unlinked_users',
+            'local_elby_dashboard_update_user_school',
+            'local_elby_dashboard_get_schools_list',
             'local_elby_dashboard_lookup_for_signup',
             'local_elby_dashboard_register_sdms_user',
         ],

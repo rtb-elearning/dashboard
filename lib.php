@@ -30,7 +30,16 @@ defined('MOODLE_INTERNAL') || die();
  * @param global_navigation $navigation
  */
 function local_elby_dashboard_extend_navigation(global_navigation $navigation) {
-    global $CFG;
+    global $CFG, $DB, $USER, $SESSION;
+
+    // Only show the menu to logged-in users with the view capability.
+    if (!isloggedin() || isguestuser()) {
+        return;
+    }
+    $systemcontext = context_system::instance();
+    if (!has_capability('local/elby_dashboard:view', $systemcontext)) {
+        return;
+    }
 
     // Add Elby Dashboard to the custom menu (appears in "More" menu in Moodle 5.1).
     $dashboardurl = new moodle_url('/local/elby_dashboard/index.php');
@@ -57,6 +66,18 @@ function local_elby_dashboard_extend_navigation(global_navigation $navigation) {
 
     // Make it visible in the navigation drawer.
     $node->showinflatnavigation = true;
+
+    // Feature 2: Prompt unlinked users to self-link (once per session).
+    if (!is_siteadmin()
+            && empty($SESSION->elby_sdms_prompted)) {
+        $islinked = $DB->record_exists('elby_sdms_users', ['userid' => $USER->id]);
+        if (!$islinked) {
+            $linkurl = (new moodle_url('/local/elby_dashboard/link_sdms.php'))->out();
+            $message = get_string('self_link_prompt', 'local_elby_dashboard', $linkurl);
+            \core\notification::info($message);
+            $SESSION->elby_sdms_prompted = true;
+        }
+    }
 }
 
 /**
@@ -83,6 +104,18 @@ function local_elby_dashboard_extend_settings_navigation(settings_navigation $na
                 new pix_icon('i/settings', get_string('nav_admin', 'local_elby_dashboard'))
             );
             $settingnode->add_node($adminnode);
+
+            // Bulk Link navigation item.
+            $bulkurl = new moodle_url('/local/elby_dashboard/admin/bulk_link.php');
+            $bulknode = navigation_node::create(
+                get_string('bulk_link_title', 'local_elby_dashboard'),
+                $bulkurl,
+                navigation_node::TYPE_SETTING,
+                null,
+                'elby_dashboard_bulk_link',
+                new pix_icon('i/upload', get_string('bulk_link_title', 'local_elby_dashboard'))
+            );
+            $settingnode->add_node($bulknode);
         }
     }
 }
@@ -122,6 +155,183 @@ function local_elby_dashboard_pluginfile($course, $cm, $context, $filearea, $arg
     }
 
     send_stored_file($file, 86400, 0, $forcedownload, $options);
+}
+
+/**
+ * Add SDMS information to the user profile page.
+ *
+ * @param \core_user\output\myprofile\tree $tree Profile tree.
+ * @param stdClass $user The user whose profile is being viewed.
+ * @param bool $iscurrentuser Whether the profile belongs to the current user.
+ * @param stdClass|null $course Course object (null for site profile).
+ */
+function local_elby_dashboard_myprofile_navigation(
+    \core_user\output\myprofile\tree $tree,
+    $user,
+    $iscurrentuser,
+    $course
+) {
+    global $DB, $USER;
+
+    // Get the SDMS link record for this user.
+    $sdmsuser = $DB->get_record('elby_sdms_users', ['userid' => $user->id]);
+
+    if ($sdmsuser) {
+        // User is linked — show SDMS Information category.
+        $category = new \core_user\output\myprofile\category(
+            'sdms_information',
+            get_string('profile_sdms_category', 'local_elby_dashboard'),
+            'contact'
+        );
+        $tree->add_category($category);
+
+        // SDMS ID.
+        $tree->add_node(new \core_user\output\myprofile\node(
+            'sdms_information',
+            'sdms_id',
+            get_string('profile_sdms_id', 'local_elby_dashboard'),
+            null,
+            null,
+            $sdmsuser->sdms_id
+        ));
+
+        // User Type.
+        $tree->add_node(new \core_user\output\myprofile\node(
+            'sdms_information',
+            'sdms_user_type',
+            get_string('profile_user_type', 'local_elby_dashboard'),
+            null,
+            null,
+            ucfirst($sdmsuser->user_type)
+        ));
+
+        // School.
+        if ($sdmsuser->schoolid) {
+            $school = $DB->get_record('elby_schools', ['id' => $sdmsuser->schoolid], 'school_code, school_name');
+            if ($school) {
+                $tree->add_node(new \core_user\output\myprofile\node(
+                    'sdms_information',
+                    'sdms_school',
+                    get_string('profile_school', 'local_elby_dashboard'),
+                    null,
+                    null,
+                    $school->school_name . ' (' . $school->school_code . ')'
+                ));
+            }
+        }
+
+        // Type-specific data.
+        if ($sdmsuser->user_type === 'student') {
+            $student = $DB->get_record('elby_students', ['sdms_userid' => $sdmsuser->id]);
+            if ($student) {
+                if (!empty($student->program)) {
+                    $tree->add_node(new \core_user\output\myprofile\node(
+                        'sdms_information',
+                        'sdms_program',
+                        get_string('profile_program', 'local_elby_dashboard'),
+                        null,
+                        null,
+                        $student->program
+                    ));
+                }
+                if (!empty($student->gender)) {
+                    $tree->add_node(new \core_user\output\myprofile\node(
+                        'sdms_information',
+                        'sdms_gender',
+                        get_string('profile_gender', 'local_elby_dashboard'),
+                        null,
+                        null,
+                        ucfirst(strtolower($student->gender))
+                    ));
+                }
+            }
+        } else {
+            $teacher = $DB->get_record('elby_teachers', ['sdms_userid' => $sdmsuser->id]);
+            if ($teacher) {
+                if (!empty($teacher->position)) {
+                    $tree->add_node(new \core_user\output\myprofile\node(
+                        'sdms_information',
+                        'sdms_position',
+                        get_string('profile_position', 'local_elby_dashboard'),
+                        null,
+                        null,
+                        $teacher->position
+                    ));
+                }
+                if (!empty($teacher->gender)) {
+                    $tree->add_node(new \core_user\output\myprofile\node(
+                        'sdms_information',
+                        'sdms_gender',
+                        get_string('profile_gender', 'local_elby_dashboard'),
+                        null,
+                        null,
+                        ucfirst(strtolower($teacher->gender))
+                    ));
+                }
+            }
+        }
+
+        // Status.
+        if (!empty($sdmsuser->sdms_status)) {
+            $tree->add_node(new \core_user\output\myprofile\node(
+                'sdms_information',
+                'sdms_status',
+                get_string('profile_status', 'local_elby_dashboard'),
+                null,
+                null,
+                ucfirst(strtolower($sdmsuser->sdms_status))
+            ));
+        }
+
+        // Academic Year.
+        if (!empty($sdmsuser->academic_year)) {
+            $tree->add_node(new \core_user\output\myprofile\node(
+                'sdms_information',
+                'sdms_academic_year',
+                get_string('profile_academic_year', 'local_elby_dashboard'),
+                null,
+                null,
+                $sdmsuser->academic_year
+            ));
+        }
+    } else {
+        // User is NOT linked.
+        if ($iscurrentuser) {
+            // Viewing own profile — show link prompt.
+            $category = new \core_user\output\myprofile\category(
+                'sdms_information',
+                get_string('profile_sdms_category', 'local_elby_dashboard'),
+                'contact'
+            );
+            $tree->add_category($category);
+
+            $linkurl = new moodle_url('/local/elby_dashboard/link_sdms.php');
+            $tree->add_node(new \core_user\output\myprofile\node(
+                'sdms_information',
+                'sdms_link_prompt',
+                get_string('profile_link_own', 'local_elby_dashboard'),
+                null,
+                $linkurl
+            ));
+        } else if (has_capability('local/elby_dashboard:manage', context_system::instance())) {
+            // Admin viewing another user's profile — show admin link.
+            $category = new \core_user\output\myprofile\category(
+                'sdms_information',
+                get_string('profile_sdms_category', 'local_elby_dashboard'),
+                'contact'
+            );
+            $tree->add_category($category);
+
+            $adminurl = new moodle_url('/local/elby_dashboard/admin/index.php', ['page' => 'admin']);
+            $tree->add_node(new \core_user\output\myprofile\node(
+                'sdms_information',
+                'sdms_link_admin',
+                get_string('profile_link_admin', 'local_elby_dashboard'),
+                null,
+                $adminurl
+            ));
+        }
+    }
 }
 
 /**

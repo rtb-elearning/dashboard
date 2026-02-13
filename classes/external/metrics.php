@@ -89,7 +89,6 @@ class metrics extends external_api {
                 'error' => 'School not found',
                 'school_code' => $schoolcode,
                 'school_name' => '',
-                'metrics' => null,
             ];
         }
 
@@ -117,7 +116,6 @@ class metrics extends external_api {
                 'error' => '',
                 'school_code' => $school->school_code,
                 'school_name' => $school->school_name,
-                'metrics' => null,
             ];
         }
 
@@ -209,6 +207,8 @@ class metrics extends external_api {
             'search' => new external_value(PARAM_TEXT, 'Search query', VALUE_DEFAULT, ''),
             'engagement_level' => new external_value(PARAM_TEXT, 'Filter: high, medium, low, at_risk, or empty',
                 VALUE_DEFAULT, ''),
+            'user_type' => new external_value(PARAM_TEXT, 'Filter: student, teacher, or empty for students only',
+                VALUE_DEFAULT, ''),
         ]);
     }
 
@@ -223,11 +223,12 @@ class metrics extends external_api {
      * @param int $perpage Per page count.
      * @param string $search Search query.
      * @param string $engagementlevel Engagement level filter.
+     * @param string $usertype User type filter: student, teacher, or empty.
      * @return array Paginated student list.
      */
     public static function get_student_list(string $schoolcode = '', int $courseid = 0,
             string $sort = 'lastname', string $order = 'ASC', int $page = 0, int $perpage = 25,
-            string $search = '', string $engagementlevel = ''): array {
+            string $search = '', string $engagementlevel = '', string $usertype = ''): array {
         global $DB;
 
         $params = self::validate_parameters(
@@ -241,6 +242,7 @@ class metrics extends external_api {
                 'perpage' => $perpage,
                 'search' => $search,
                 'engagement_level' => $engagementlevel,
+                'user_type' => $usertype,
             ]
         );
 
@@ -255,17 +257,70 @@ class metrics extends external_api {
         $order = strtoupper($params['order']) === 'DESC' ? 'DESC' : 'ASC';
         $page = max(0, $params['page']);
         $perpage = min(100, max(1, $params['perpage']));
+        $isteacher = ($params['user_type'] === 'teacher');
 
-        $weekstart = \local_elby_dashboard\metrics_calculator::get_current_week_start();
+        // 30-day window for log aggregates.
+        $logstart = time() - (30 * 86400);
 
-        // Build query.
+        // Build query — join elby_teachers or elby_students based on user_type.
+        $suusertype = $isteacher ? 'teacher' : 'student';
+
+        // Subquery 1: Log aggregates (active_days + total_actions) from last 30 days.
+        $logwhere = "l.timecreated >= :logstart AND l.anonymous = 0 AND l.userid > 0";
+        if ($params['courseid'] > 0) {
+            $logwhere .= " AND l.courseid = :log_courseid";
+        }
+        $logsub = "(SELECT l.userid,
+                           COUNT(DISTINCT FLOOR(l.timecreated / 86400)) AS active_days,
+                           COUNT(*) AS total_actions
+                    FROM {logstore_standard_log} l
+                    WHERE {$logwhere}
+                    GROUP BY l.userid)";
+
+        // Subquery 2: Quiz average score (all-time).
+        $quizwhere = "q.grade > 0";
+        if ($params['courseid'] > 0) {
+            $quizwhere .= " AND q.course = :quiz_courseid";
+        }
+        $quizsub = "(SELECT qg.userid,
+                            AVG(qg.grade / q.grade * 100) AS quizzes_avg_score
+                     FROM {quiz_grades} qg
+                     JOIN {quiz} q ON q.id = qg.quiz
+                     WHERE {$quizwhere}
+                     GROUP BY qg.userid)";
+
+        // Subquery 3: Course progress (only when a specific course is selected).
+        $hascoursefilter = ($params['courseid'] > 0);
+        $progresssub = "";
+        if ($hascoursefilter) {
+            $progresssub = " LEFT JOIN (
+                SELECT ue2.userid,
+                       CASE WHEN COUNT(cm2.id) = 0 THEN NULL
+                            ELSE SUM(CASE WHEN cmc2.completionstate >= 1 THEN 1 ELSE 0 END) * 100.0 / COUNT(cm2.id)
+                       END AS course_progress
+                FROM {user_enrolments} ue2
+                JOIN {enrol} e2 ON e2.id = ue2.enrolid
+                JOIN {course_modules} cm2 ON cm2.course = e2.courseid AND cm2.completion > 0
+                    AND cm2.deletioninprogress = 0
+                LEFT JOIN {course_modules_completion} cmc2 ON cmc2.coursemoduleid = cm2.id
+                    AND cmc2.userid = ue2.userid
+                WHERE e2.courseid = :progress_courseid
+                GROUP BY ue2.userid
+            ) progress_agg ON progress_agg.userid = u.id";
+        }
+
+        $progresscol = $hascoursefilter ? "progress_agg.course_progress" : "NULL AS course_progress";
+
         $select = "SELECT u.id AS userid, u.firstname, u.lastname,
-                          su.sdms_id, st.program,
+                          su.sdms_id,
+                          " . ($isteacher ? "et.position" : "st.program") . ",
+                          " . ($isteacher ? "et.gender" : "st.gender") . ",
+                          " . ($isteacher ? "NULL AS date_of_birth" : "st.date_of_birth") . ",
                           u.lastaccess AS last_access,
-                          COALESCE(um.active_days, 0) AS active_days,
-                          COALESCE(um.total_actions, 0) AS total_actions,
-                          um.quizzes_avg_score,
-                          um.course_progress,
+                          COALESCE(log_agg.active_days, 0) AS active_days,
+                          COALESCE(log_agg.total_actions, 0) AS total_actions,
+                          quiz_agg.quizzes_avg_score,
+                          {$progresscol},
                           sch2.school_name,
                           sch2.school_code,
                           CASE
@@ -275,22 +330,29 @@ class metrics extends external_api {
                           END AS status";
 
         $from = " FROM {user} u
-                  JOIN {elby_sdms_users} su ON su.userid = u.id AND su.user_type = 'student'
-                  LEFT JOIN {elby_students} st ON st.sdms_userid = su.id
-                  LEFT JOIN {elby_schools} sch2 ON sch2.id = su.schoolid
-                  LEFT JOIN {elby_user_metrics} um ON um.userid = u.id
-                      AND um.period_start = :weekstart AND um.period_type = 'weekly'";
+                  JOIN {elby_sdms_users} su ON su.userid = u.id AND su.user_type = :suusertype"
+                  . ($isteacher
+                      ? " LEFT JOIN {elby_teachers} et ON et.sdms_userid = su.id"
+                      : " LEFT JOIN {elby_students} st ON st.sdms_userid = su.id")
+                  . " LEFT JOIN {elby_schools} sch2 ON sch2.id = su.schoolid
+                  LEFT JOIN {$logsub} log_agg ON log_agg.userid = u.id
+                  LEFT JOIN {$quizsub} quiz_agg ON quiz_agg.userid = u.id"
+                  . $progresssub;
 
         $where = " WHERE u.deleted = 0";
         $sqlparams = [
             'atriskthreshold' => time() - (7 * 86400),
-            'weekstart' => $weekstart,
+            'logstart' => $logstart,
+            'suusertype' => $suusertype,
         ];
 
-        // Course filter.
+        // Course filter params for subqueries.
         if ($params['courseid'] > 0) {
-            $from .= " AND um.courseid = :courseid";
-            $sqlparams['courseid'] = $params['courseid'];
+            $sqlparams['log_courseid'] = $params['courseid'];
+            $sqlparams['quiz_courseid'] = $params['courseid'];
+            if ($hascoursefilter) {
+                $sqlparams['progress_courseid'] = $params['courseid'];
+            }
         }
 
         // School filter.
@@ -316,11 +378,11 @@ class metrics extends external_api {
                 $where .= " AND (u.lastaccess < :engthreshold OR u.lastaccess IS NULL)";
                 $sqlparams['engthreshold'] = time() - (7 * 86400);
             } else if ($params['engagement_level'] === 'high') {
-                $where .= " AND COALESCE(um.total_actions, 0) > 50";
+                $where .= " AND COALESCE(log_agg.total_actions, 0) > 50";
             } else if ($params['engagement_level'] === 'medium') {
-                $where .= " AND COALESCE(um.total_actions, 0) BETWEEN 10 AND 50";
+                $where .= " AND COALESCE(log_agg.total_actions, 0) BETWEEN 10 AND 50";
             } else if ($params['engagement_level'] === 'low') {
-                $where .= " AND COALESCE(um.total_actions, 0) > 0 AND COALESCE(um.total_actions, 0) < 10";
+                $where .= " AND COALESCE(log_agg.total_actions, 0) > 0 AND COALESCE(log_agg.total_actions, 0) < 10";
             }
         }
 
@@ -330,8 +392,8 @@ class metrics extends external_api {
             'firstname' => 'u.firstname',
             'active_days' => 'active_days',
             'total_actions' => 'total_actions',
-            'quizzes_avg_score' => 'um.quizzes_avg_score',
-            'course_progress' => 'um.course_progress',
+            'quizzes_avg_score' => 'quiz_agg.quizzes_avg_score',
+            'course_progress' => ($hascoursefilter ? 'progress_agg.course_progress' : 'u.lastname'),
             'last_access' => 'u.lastaccess',
         ];
         $sortfield = $sortmap[$sort] ?? 'u.lastname';
@@ -343,20 +405,37 @@ class metrics extends external_api {
         $totalcount = $DB->count_records_sql($countsql, $sqlparams);
 
         // Fetch paginated results.
-        $groupby = " GROUP BY u.id, u.firstname, u.lastname, su.sdms_id, st.program,
-                     u.lastaccess, um.active_days, um.total_actions,
-                     um.quizzes_avg_score, um.course_progress,
+        $programorposition = $isteacher ? 'et.position' : 'st.program';
+        $progressgroupby = $hascoursefilter ? ', progress_agg.course_progress' : '';
+        $gendercol = $isteacher ? 'et.gender' : 'st.gender';
+        $dobcol = $isteacher ? '' : ', st.date_of_birth';
+        $groupby = " GROUP BY u.id, u.firstname, u.lastname, su.sdms_id, {$programorposition},
+                     {$gendercol}{$dobcol},
+                     u.lastaccess, log_agg.active_days, log_agg.total_actions,
+                     quiz_agg.quizzes_avg_score{$progressgroupby},
                      sch2.school_name, sch2.school_code";
         $sql = $select . $from . $where . $groupby . $orderby;
         $records = $DB->get_records_sql($sql, $sqlparams, $page * $perpage, $perpage);
 
         $students = [];
         foreach ($records as $rec) {
+            // Compute age from date_of_birth.
+            $age = null;
+            if (!empty($rec->date_of_birth)) {
+                $dob = \DateTime::createFromFormat('Y-m-d', $rec->date_of_birth);
+                if ($dob) {
+                    $age = $dob->diff(new \DateTime())->y;
+                }
+            }
+
             $students[] = [
                 'userid' => (int) $rec->userid,
                 'fullname' => $rec->firstname . ' ' . $rec->lastname,
                 'sdms_id' => $rec->sdms_id ?? '',
-                'program' => $rec->program ?? '',
+                'program' => $isteacher ? '' : ($rec->program ?? ''),
+                'position' => $isteacher ? ($rec->position ?? '') : '',
+                'gender' => $rec->gender ?? '',
+                'age' => $age,
                 'school_name' => $rec->school_name ?? '',
                 'school_code' => $rec->school_code ?? '',
                 'last_access' => (int) ($rec->last_access ?? 0),
@@ -387,6 +466,9 @@ class metrics extends external_api {
                     'fullname' => new external_value(PARAM_TEXT, 'Full name'),
                     'sdms_id' => new external_value(PARAM_TEXT, 'SDMS ID'),
                     'program' => new external_value(PARAM_TEXT, 'Program name'),
+                    'position' => new external_value(PARAM_TEXT, 'Teacher position'),
+                    'gender' => new external_value(PARAM_TEXT, 'Gender'),
+                    'age' => new external_value(PARAM_INT, 'Age in years', VALUE_OPTIONAL),
                     'school_name' => new external_value(PARAM_TEXT, 'School name'),
                     'school_code' => new external_value(PARAM_TEXT, 'School code'),
                     'last_access' => new external_value(PARAM_INT, 'Last access timestamp'),
@@ -498,6 +580,412 @@ class metrics extends external_api {
             'low_engagement_count' => new external_value(PARAM_INT, 'Low engagement count'),
             'at_risk_count' => new external_value(PARAM_INT, 'At-risk count'),
             'total_enrolled' => new external_value(PARAM_INT, 'Total enrolled'),
+        ]);
+    }
+
+    // =========================================================================
+    // get_trades_report — Trades/programs offered with school counts.
+    // =========================================================================
+
+    /**
+     * Parameters for get_trades_report.
+     */
+    public static function get_trades_report_parameters(): external_function_parameters {
+        return new external_function_parameters([
+            'level_name' => new external_value(PARAM_TEXT, 'Optional level name filter', VALUE_DEFAULT, ''),
+        ]);
+    }
+
+    /**
+     * Get trades report showing which trades are offered and how many schools offer each.
+     *
+     * @param string $levelname Optional level filter.
+     * @return array Trades report data.
+     */
+    public static function get_trades_report(string $levelname = ''): array {
+        global $DB;
+
+        $params = self::validate_parameters(
+            self::get_trades_report_parameters(),
+            ['level_name' => $levelname]
+        );
+
+        $context = context_system::instance();
+        self::validate_context($context);
+        require_capability('local/elby_dashboard:viewreports', $context);
+
+        // Get trade counts.
+        $where = '';
+        $sqlparams = [];
+        if (!empty($params['level_name'])) {
+            $where = " AND l.level_name = :levelname";
+            $sqlparams['levelname'] = $params['level_name'];
+        }
+
+        $sql = "SELECT c.id, c.combination_code, c.combination_name, c.combination_desc,
+                       COUNT(DISTINCT s.id) AS school_count
+                FROM {elby_combinations} c
+                JOIN {elby_levels} l ON l.id = c.levelid
+                JOIN {elby_schools} s ON s.id = l.schoolid
+                WHERE 1=1 {$where}
+                GROUP BY c.id, c.combination_code, c.combination_name, c.combination_desc
+                ORDER BY school_count DESC";
+        $trades = $DB->get_records_sql($sql, $sqlparams);
+
+        // For each trade, get the list of schools.
+        $result = [];
+        foreach ($trades as $trade) {
+            $schoolssql = "SELECT DISTINCT s.school_code, s.school_name
+                           FROM {elby_combinations} c
+                           JOIN {elby_levels} l ON l.id = c.levelid
+                           JOIN {elby_schools} s ON s.id = l.schoolid
+                           WHERE c.combination_code = :code" . $where . "
+                           ORDER BY s.school_name";
+            $schoolparams = array_merge(['code' => $trade->combination_code], $sqlparams);
+            $schools = $DB->get_records_sql($schoolssql, $schoolparams);
+
+            $schoollist = [];
+            foreach ($schools as $school) {
+                $schoollist[] = [
+                    'school_name' => $school->school_name,
+                    'school_code' => $school->school_code,
+                ];
+            }
+
+            $result[] = [
+                'trade_name' => $trade->combination_name,
+                'trade_code' => $trade->combination_code,
+                'trade_desc' => $trade->combination_desc ?? '',
+                'school_count' => (int) $trade->school_count,
+                'schools' => $schoollist,
+            ];
+        }
+
+        return ['trades' => $result];
+    }
+
+    /**
+     * Return structure for get_trades_report.
+     */
+    public static function get_trades_report_returns(): external_single_structure {
+        return new external_single_structure([
+            'trades' => new external_multiple_structure(
+                new external_single_structure([
+                    'trade_name' => new external_value(PARAM_TEXT, 'Trade/combination name'),
+                    'trade_code' => new external_value(PARAM_TEXT, 'Trade/combination code'),
+                    'trade_desc' => new external_value(PARAM_TEXT, 'Trade description'),
+                    'school_count' => new external_value(PARAM_INT, 'Number of schools offering this trade'),
+                    'schools' => new external_multiple_structure(
+                        new external_single_structure([
+                            'school_name' => new external_value(PARAM_TEXT, 'School name'),
+                            'school_code' => new external_value(PARAM_TEXT, 'School code'),
+                        ])
+                    ),
+                ])
+            ),
+        ]);
+    }
+
+    // =========================================================================
+    // get_school_user_counts — Student/teacher comparison per school.
+    // =========================================================================
+
+    /**
+     * Parameters for get_school_user_counts.
+     */
+    public static function get_school_user_counts_parameters(): external_function_parameters {
+        return new external_function_parameters([]);
+    }
+
+    /**
+     * Get student and teacher counts per school for comparison.
+     *
+     * @return array School user counts data.
+     */
+    public static function get_school_user_counts(): array {
+        global $DB;
+
+        self::validate_parameters(self::get_school_user_counts_parameters(), []);
+
+        $context = context_system::instance();
+        self::validate_context($context);
+        require_capability('local/elby_dashboard:viewreports', $context);
+
+        $sql = "SELECT s.id, s.school_code, s.school_name,
+                       SUM(CASE WHEN su.user_type = 'student' THEN 1 ELSE 0 END) AS student_count,
+                       SUM(CASE WHEN su.user_type = 'teacher' THEN 1 ELSE 0 END) AS teacher_count
+                FROM {elby_schools} s
+                LEFT JOIN {elby_sdms_users} su ON su.schoolid = s.id
+                GROUP BY s.id, s.school_code, s.school_name
+                HAVING SUM(CASE WHEN su.user_type = 'student' THEN 1 ELSE 0 END) > 0
+                    OR SUM(CASE WHEN su.user_type = 'teacher' THEN 1 ELSE 0 END) > 0
+                ORDER BY s.school_name";
+
+        $records = $DB->get_records_sql($sql);
+
+        $schools = [];
+        foreach ($records as $rec) {
+            $schools[] = [
+                'school_code' => $rec->school_code,
+                'school_name' => $rec->school_name,
+                'student_count' => (int) $rec->student_count,
+                'teacher_count' => (int) $rec->teacher_count,
+            ];
+        }
+
+        return ['schools' => $schools];
+    }
+
+    /**
+     * Return structure for get_school_user_counts.
+     */
+    public static function get_school_user_counts_returns(): external_single_structure {
+        return new external_single_structure([
+            'schools' => new external_multiple_structure(
+                new external_single_structure([
+                    'school_code' => new external_value(PARAM_TEXT, 'School code'),
+                    'school_name' => new external_value(PARAM_TEXT, 'School name'),
+                    'student_count' => new external_value(PARAM_INT, 'Number of students'),
+                    'teacher_count' => new external_value(PARAM_INT, 'Number of teachers'),
+                ])
+            ),
+        ]);
+    }
+
+    // =========================================================================
+    // get_school_demographics — Gender breakdown + age distribution.
+    // =========================================================================
+
+    /**
+     * Parameters for get_school_demographics.
+     */
+    public static function get_school_demographics_parameters(): external_function_parameters {
+        return new external_function_parameters([
+            'school_code' => new external_value(PARAM_TEXT, 'SDMS school code'),
+        ]);
+    }
+
+    /**
+     * Get school demographics: gender breakdown for students/teachers and student age distribution.
+     *
+     * @param string $schoolcode SDMS school code.
+     * @return array Demographics data.
+     */
+    public static function get_school_demographics(string $schoolcode): array {
+        global $DB;
+
+        $params = self::validate_parameters(
+            self::get_school_demographics_parameters(),
+            ['school_code' => $schoolcode]
+        );
+        $schoolcode = $params['school_code'];
+
+        $context = context_system::instance();
+        self::validate_context($context);
+        require_capability('local/elby_dashboard:viewreports', $context);
+
+        $school = $DB->get_record('elby_schools', ['school_code' => $schoolcode], 'id');
+        if (!$school) {
+            return [
+                'success' => false,
+                'error' => 'School not found',
+                'students' => ['total' => 0, 'male' => 0, 'female' => 0],
+                'teachers' => ['total' => 0, 'male' => 0, 'female' => 0],
+                'age_distribution' => [],
+            ];
+        }
+
+        // Student demographics.
+        $studentrow = $DB->get_record_sql(
+            "SELECT COUNT(*) AS total,
+                    SUM(CASE WHEN st.gender = 'MALE' THEN 1 ELSE 0 END) AS male,
+                    SUM(CASE WHEN st.gender = 'FEMALE' THEN 1 ELSE 0 END) AS female
+             FROM {elby_sdms_users} su
+             JOIN {elby_students} st ON st.sdms_userid = su.id
+             WHERE su.schoolid = :schoolid AND su.user_type = 'student'",
+            ['schoolid' => $school->id]
+        );
+
+        // Teacher demographics.
+        $teacherrow = $DB->get_record_sql(
+            "SELECT COUNT(*) AS total,
+                    SUM(CASE WHEN et.gender = 'MALE' THEN 1 ELSE 0 END) AS male,
+                    SUM(CASE WHEN et.gender = 'FEMALE' THEN 1 ELSE 0 END) AS female
+             FROM {elby_sdms_users} su
+             JOIN {elby_teachers} et ON et.sdms_userid = su.id
+             WHERE su.schoolid = :schoolid AND su.user_type = 'teacher'",
+            ['schoolid' => $school->id]
+        );
+
+        // Age distribution from student date_of_birth.
+        $dobrows = $DB->get_records_sql(
+            "SELECT st.date_of_birth
+             FROM {elby_sdms_users} su
+             JOIN {elby_students} st ON st.sdms_userid = su.id
+             WHERE su.schoolid = :schoolid AND su.user_type = 'student'
+               AND st.date_of_birth IS NOT NULL AND st.date_of_birth != ''",
+            ['schoolid' => $school->id]
+        );
+
+        $today = new \DateTime();
+        $agebuckets = [
+            'Under 16' => 0,
+            '16-17' => 0,
+            '18-19' => 0,
+            '20-21' => 0,
+            '22-24' => 0,
+            '25+' => 0,
+        ];
+        foreach ($dobrows as $row) {
+            $dob = \DateTime::createFromFormat('Y-m-d', $row->date_of_birth);
+            if (!$dob) {
+                continue;
+            }
+            $age = $dob->diff($today)->y;
+            if ($age < 16) {
+                $agebuckets['Under 16']++;
+            } else if ($age <= 17) {
+                $agebuckets['16-17']++;
+            } else if ($age <= 19) {
+                $agebuckets['18-19']++;
+            } else if ($age <= 21) {
+                $agebuckets['20-21']++;
+            } else if ($age <= 24) {
+                $agebuckets['22-24']++;
+            } else {
+                $agebuckets['25+']++;
+            }
+        }
+
+        $agedist = [];
+        foreach ($agebuckets as $label => $count) {
+            $agedist[] = ['label' => $label, 'count' => (int) $count];
+        }
+
+        return [
+            'success' => true,
+            'error' => '',
+            'students' => [
+                'total' => (int) ($studentrow->total ?? 0),
+                'male' => (int) ($studentrow->male ?? 0),
+                'female' => (int) ($studentrow->female ?? 0),
+            ],
+            'teachers' => [
+                'total' => (int) ($teacherrow->total ?? 0),
+                'male' => (int) ($teacherrow->male ?? 0),
+                'female' => (int) ($teacherrow->female ?? 0),
+            ],
+            'age_distribution' => $agedist,
+        ];
+    }
+
+    /**
+     * Return structure for get_school_demographics.
+     */
+    public static function get_school_demographics_returns(): external_single_structure {
+        return new external_single_structure([
+            'success' => new external_value(PARAM_BOOL, 'Whether data was found'),
+            'error' => new external_value(PARAM_TEXT, 'Error message'),
+            'students' => new external_single_structure([
+                'total' => new external_value(PARAM_INT, 'Total students'),
+                'male' => new external_value(PARAM_INT, 'Male students'),
+                'female' => new external_value(PARAM_INT, 'Female students'),
+            ]),
+            'teachers' => new external_single_structure([
+                'total' => new external_value(PARAM_INT, 'Total teachers'),
+                'male' => new external_value(PARAM_INT, 'Male teachers'),
+                'female' => new external_value(PARAM_INT, 'Female teachers'),
+            ]),
+            'age_distribution' => new external_multiple_structure(
+                new external_single_structure([
+                    'label' => new external_value(PARAM_TEXT, 'Age bucket label'),
+                    'count' => new external_value(PARAM_INT, 'Count in this bucket'),
+                ])
+            ),
+        ]);
+    }
+
+    // =========================================================================
+    // trigger_task — Run a scheduled task manually.
+    // =========================================================================
+
+    /**
+     * Parameters for trigger_task.
+     */
+    public static function trigger_task_parameters(): external_function_parameters {
+        return new external_function_parameters([
+            'task_name' => new external_value(PARAM_TEXT,
+                'Task to run: compute_user_metrics, aggregate_school_metrics, or refresh_sdms_cache'),
+        ]);
+    }
+
+    /**
+     * Trigger a scheduled task to run immediately.
+     *
+     * @param string $taskname The task name.
+     * @return array Result with success flag and message.
+     */
+    public static function trigger_task(string $taskname): array {
+        $params = self::validate_parameters(
+            self::trigger_task_parameters(),
+            ['task_name' => $taskname]
+        );
+        $taskname = $params['task_name'];
+
+        $context = context_system::instance();
+        self::validate_context($context);
+        require_capability('local/elby_dashboard:manage', $context);
+
+        // Map task names to class names.
+        $taskmap = [
+            'compute_user_metrics' => '\local_elby_dashboard\task\compute_user_metrics',
+            'aggregate_school_metrics' => '\local_elby_dashboard\task\aggregate_school_metrics',
+            'refresh_sdms_cache' => '\local_elby_dashboard\task\refresh_sdms_cache',
+        ];
+
+        if (!isset($taskmap[$taskname])) {
+            return [
+                'success' => false,
+                'message' => 'Unknown task: ' . $taskname,
+            ];
+        }
+
+        $taskclass = $taskmap[$taskname];
+
+        try {
+            $task = \core\task\manager::get_scheduled_task($taskclass);
+            if (!$task) {
+                return [
+                    'success' => false,
+                    'message' => 'Task not found: ' . $taskclass,
+                ];
+            }
+            // Buffer output — tasks use mtrace() which prints to stdout.
+            ob_start();
+            try {
+                $task->execute();
+            } finally {
+                ob_end_clean();
+            }
+            return [
+                'success' => true,
+                'message' => 'Task completed successfully: ' . $taskname,
+            ];
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'message' => 'Task failed: ' . $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Return structure for trigger_task.
+     */
+    public static function trigger_task_returns(): external_single_structure {
+        return new external_single_structure([
+            'success' => new external_value(PARAM_BOOL, 'Whether the task ran successfully'),
+            'message' => new external_value(PARAM_TEXT, 'Result message'),
         ]);
     }
 }

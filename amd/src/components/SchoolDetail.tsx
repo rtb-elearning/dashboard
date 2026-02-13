@@ -24,7 +24,7 @@
  */
 
 import { useState, useEffect } from 'preact/hooks';
-import type { SchoolMetrics, EngagementDistribution } from '../types';
+import type { SchoolMetrics, EngagementDistribution, SchoolDemographics, SchoolInfoResponse, GenderBreakdown } from '../types';
 
 // @ts-ignore
 declare const require: (deps: string[], callback: (...args: any[]) => void) => void;
@@ -167,6 +167,192 @@ function WeeklyTrendChart({ data }: { data: Array<{ week: string; active: number
     );
 }
 
+// Gender Chart — horizontal stacked bar
+function GenderChart({ label, data }: { label: string; data: GenderBreakdown }) {
+    const total = data.total || 1;
+    const malePct = (data.male / total) * 100;
+    const femalePct = (data.female / total) * 100;
+
+    return (
+        <div className="mb-4">
+            <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-gray-700">{label}</span>
+                <span className="text-sm text-gray-500">{data.total.toLocaleString()} total</span>
+            </div>
+            <div className="flex h-7 rounded-lg overflow-hidden">
+                {malePct > 0 && (
+                    <div className="bg-blue-500 transition-all flex items-center justify-center text-white text-xs font-medium"
+                        style={{ width: `${malePct}%`, minWidth: malePct > 5 ? undefined : '20px' }}
+                        title={`Male: ${data.male}`}>
+                        {malePct > 10 ? `${Math.round(malePct)}%` : ''}
+                    </div>
+                )}
+                {femalePct > 0 && (
+                    <div className="bg-pink-400 transition-all flex items-center justify-center text-white text-xs font-medium"
+                        style={{ width: `${femalePct}%`, minWidth: femalePct > 5 ? undefined : '20px' }}
+                        title={`Female: ${data.female}`}>
+                        {femalePct > 10 ? `${Math.round(femalePct)}%` : ''}
+                    </div>
+                )}
+                {data.total === 0 && (
+                    <div className="bg-gray-200 w-full" />
+                )}
+            </div>
+            <div className="flex gap-4 mt-2 text-xs text-gray-600">
+                <span className="flex items-center gap-1">
+                    <span className="w-3 h-3 rounded-full bg-blue-500"></span>
+                    Male ({data.male.toLocaleString()})
+                </span>
+                <span className="flex items-center gap-1">
+                    <span className="w-3 h-3 rounded-full bg-pink-400"></span>
+                    Female ({data.female.toLocaleString()})
+                </span>
+            </div>
+        </div>
+    );
+}
+
+// Age Distribution Chart — vertical SVG bar chart
+function AgeDistributionChart({ data }: { data: Array<{ label: string; count: number }> }) {
+    if (data.length === 0 || data.every(d => d.count === 0)) {
+        return <div className="text-center text-gray-400 py-8 text-sm">No age data available</div>;
+    }
+
+    const width = 400;
+    const height = 180;
+    const padding = { top: 10, right: 10, bottom: 40, left: 40 };
+    const chartW = width - padding.left - padding.right;
+    const chartH = height - padding.top - padding.bottom;
+    const maxVal = Math.max(...data.map(d => d.count), 1);
+    const barW = Math.min(40, (chartW / data.length) * 0.6);
+    const gap = chartW / data.length;
+
+    return (
+        <svg viewBox={`0 0 ${width} ${height}`} className="w-full" preserveAspectRatio="xMidYMid meet">
+            {/* Y-axis grid lines */}
+            {[0, 25, 50, 75, 100].map(pct => {
+                const y = padding.top + chartH - (pct / 100) * chartH;
+                const val = Math.round((pct / 100) * maxVal);
+                return (
+                    <g key={pct}>
+                        <line x1={padding.left} y1={y} x2={width - padding.right} y2={y}
+                            stroke="#e5e7eb" strokeWidth="1" strokeDasharray="4" />
+                        <text x={padding.left - 5} y={y + 3} textAnchor="end"
+                            className="text-[9px]" fill="#9ca3af">{val}</text>
+                    </g>
+                );
+            })}
+
+            {/* Bars */}
+            {data.map((d, i) => {
+                const barH = (d.count / maxVal) * chartH;
+                const x = padding.left + i * gap + (gap - barW) / 2;
+                const y = padding.top + chartH - barH;
+                return (
+                    <g key={i}>
+                        <rect x={x} y={y} width={barW} height={barH}
+                            fill="#8b5cf6" rx="3" opacity="0.85" />
+                        {d.count > 0 && (
+                            <text x={x + barW / 2} y={y - 4} textAnchor="middle"
+                                className="text-[9px]" fill="#6d28d9" fontWeight="600">{d.count}</text>
+                        )}
+                        <text x={x + barW / 2} y={height - padding.bottom + 14} textAnchor="middle"
+                            className="text-[9px]" fill="#6b7280">{d.label}</text>
+                    </g>
+                );
+            })}
+        </svg>
+    );
+}
+
+// School Hierarchy — collapsible tree
+function SchoolHierarchy({ schoolInfo, expandedLevels, expandedCombos, onToggleLevel, onToggleCombo }: {
+    schoolInfo: SchoolInfoResponse;
+    expandedLevels: Set<string>;
+    expandedCombos: Set<string>;
+    onToggleLevel: (id: string) => void;
+    onToggleCombo: (id: string) => void;
+}) {
+    if (!schoolInfo.levels || schoolInfo.levels.length === 0) {
+        return <div className="text-center text-gray-400 py-6 text-sm">No academic structure data</div>;
+    }
+
+    return (
+        <div className="space-y-1">
+            {schoolInfo.levels.map(level => {
+                const isExpanded = expandedLevels.has(level.level_id);
+                const comboCount = level.combinations.length;
+                const gradeCount = level.combinations.reduce((sum, c) => sum + c.grades.length, 0);
+                return (
+                    <div key={level.level_id}>
+                        <button
+                            onClick={() => onToggleLevel(level.level_id)}
+                            className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg hover:bg-gray-50 transition-colors text-left"
+                        >
+                            <svg className={`w-4 h-4 text-gray-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                                fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                            </svg>
+                            <span className="font-medium text-gray-800">{level.level_name}</span>
+                            <span className="text-xs text-gray-400 ml-auto">
+                                {comboCount} program{comboCount !== 1 ? 's' : ''}, {gradeCount} grade{gradeCount !== 1 ? 's' : ''}
+                            </span>
+                        </button>
+                        {isExpanded && (
+                            <div className="ml-6 border-l-2 border-gray-100 pl-2 space-y-0.5">
+                                {level.combinations.map(combo => {
+                                    const comboKey = `${level.level_id}_${combo.combination_code}`;
+                                    const isComboExpanded = expandedCombos.has(comboKey);
+                                    return (
+                                        <div key={comboKey}>
+                                            <button
+                                                onClick={() => onToggleCombo(comboKey)}
+                                                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors text-left"
+                                            >
+                                                <svg className={`w-3.5 h-3.5 text-gray-400 transition-transform ${isComboExpanded ? 'rotate-90' : ''}`}
+                                                    fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                                                </svg>
+                                                <span className="text-sm font-medium text-gray-700">
+                                                    {combo.combination_name}{combo.combination_desc ? ` - ${combo.combination_desc}` : ''}
+                                                </span>
+                                                <span className="text-xs text-gray-400 ml-auto">
+                                                    {combo.grades.length} grade{combo.grades.length !== 1 ? 's' : ''}
+                                                </span>
+                                            </button>
+                                            {isComboExpanded && (
+                                                <div className="ml-6 pl-2 space-y-1 py-1">
+                                                    {combo.grades.map(grade => (
+                                                        <div key={grade.grade_code}
+                                                            className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600">
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-gray-300"></span>
+                                                            <span>{grade.grade_name}</span>
+                                                            {grade.classgroups && grade.classgroups.length > 0 && (
+                                                                <div className="flex gap-1 ml-auto">
+                                                                    {grade.classgroups.map(cg => (
+                                                                        <span key={cg.class_id}
+                                                                            className="px-2 py-0.5 text-xs bg-gray-100 text-gray-500 rounded-full">
+                                                                            {cg.class_name}
+                                                                        </span>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
 export default function SchoolDetail({ schoolCode }: SchoolDetailProps) {
     const [metrics, setMetrics] = useState<SchoolMetrics | null>(null);
     const [distribution, setDistribution] = useState<EngagementDistribution | null>(null);
@@ -174,6 +360,10 @@ export default function SchoolDetail({ schoolCode }: SchoolDetailProps) {
     const [loading, setLoading] = useState(true);
     const [syncing, setSyncing] = useState(false);
     const [weeklyTrend, setWeeklyTrend] = useState<Array<{ week: string; active: number; enrolled: number }>>([]);
+    const [demographics, setDemographics] = useState<SchoolDemographics | null>(null);
+    const [schoolInfo, setSchoolInfo] = useState<SchoolInfoResponse | null>(null);
+    const [expandedLevels, setExpandedLevels] = useState<Set<string>>(new Set());
+    const [expandedCombos, setExpandedCombos] = useState<Set<string>>(new Set());
 
     useEffect(() => {
         loadSchoolData();
@@ -182,7 +372,7 @@ export default function SchoolDetail({ schoolCode }: SchoolDetailProps) {
     async function loadSchoolData() {
         try {
             setLoading(true);
-            const [metricsResult, distResult] = await Promise.all([
+            const [metricsResult, distResult, demoResult, infoResult] = await Promise.all([
                 ajaxCall('local_elby_dashboard_get_school_metrics', {
                     school_code: schoolCode,
                     courseid: 0,
@@ -192,6 +382,12 @@ export default function SchoolDetail({ schoolCode }: SchoolDetailProps) {
                     school_code: schoolCode,
                     courseid: 0,
                     period_type: 'weekly',
+                }),
+                ajaxCall('local_elby_dashboard_get_school_demographics', {
+                    school_code: schoolCode,
+                }),
+                ajaxCall('local_elby_dashboard_get_school_info', {
+                    school_code: schoolCode,
                 }),
             ]);
 
@@ -203,16 +399,88 @@ export default function SchoolDetail({ schoolCode }: SchoolDetailProps) {
             }
             setDistribution(distResult);
 
-            // Generate placeholder weekly trend (real implementation would fetch historical data).
-            if (metricsResult.metrics) {
-                const m = metricsResult.metrics;
+            if (demoResult.success) {
+                setDemographics(demoResult);
+            }
+            if (infoResult.success) {
+                setSchoolInfo(infoResult);
+                if (!metricsResult.success && infoResult.school_name) {
+                    setSchoolName(infoResult.school_name);
+                }
+            }
+
+            // If no pre-computed metrics, build live KPIs from student list.
+            if (!metricsResult.metrics) {
+                const studentResult = await ajaxCall('local_elby_dashboard_get_student_list', {
+                    school_code: schoolCode,
+                    courseid: 0,
+                    sort: 'lastname',
+                    order: 'ASC',
+                    page: 0,
+                    perpage: 100,
+                    search: '',
+                    engagement_level: '',
+                    user_type: 'student',
+                });
+                const students = studentResult.students || [];
+                const totalEnrolled = studentResult.total_count || students.length;
+                const activeCount = students.filter((s: any) => s.status === 'active').length;
+                const atRiskCount = students.filter((s: any) => s.status === 'at_risk').length;
+                const scoresArr = students.filter((s: any) => s.quizzes_avg_score != null).map((s: any) => s.quizzes_avg_score);
+                const avgQuiz = scoresArr.length > 0 ? Math.round(scoresArr.reduce((a: number, b: number) => a + b, 0) / scoresArr.length * 10) / 10 : 0;
+                const progressArr = students.filter((s: any) => s.course_progress != null).map((s: any) => s.course_progress);
+                const avgProgress = progressArr.length > 0 ? Math.round(progressArr.reduce((a: number, b: number) => a + b, 0) / progressArr.length * 10) / 10 : 0;
+                const totalActions = students.reduce((sum: number, s: any) => sum + (s.total_actions || 0), 0);
+
+                // Compute engagement distribution from live data.
+                const high = students.filter((s: any) => s.total_actions > 50).length;
+                const medium = students.filter((s: any) => s.total_actions >= 10 && s.total_actions <= 50).length;
+                const low = students.filter((s: any) => s.total_actions > 0 && s.total_actions < 10).length;
+
+                setMetrics({
+                    period_start: 0,
+                    period_end: 0,
+                    period_type: 'weekly',
+                    total_enrolled: totalEnrolled,
+                    total_active: activeCount,
+                    total_inactive: totalEnrolled - activeCount,
+                    new_enrollments: 0,
+                    avg_actions_per_student: totalEnrolled > 0 ? Math.round(totalActions / totalEnrolled * 10) / 10 : 0,
+                    avg_active_days: 0,
+                    avg_time_spent_minutes: 0,
+                    total_resource_views: 0,
+                    avg_resources_per_student: 0,
+                    total_submissions: 0,
+                    total_quiz_attempts: 0,
+                    avg_assignment_score: 0,
+                    avg_quiz_score: avgQuiz,
+                    submission_rate: 0,
+                    avg_course_progress: avgProgress,
+                    completion_rate: 0,
+                    high_engagement_count: high,
+                    medium_engagement_count: medium,
+                    low_engagement_count: low,
+                    at_risk_count: atRiskCount,
+                });
+
+                setDistribution({
+                    high_engagement_count: high,
+                    medium_engagement_count: medium,
+                    low_engagement_count: low,
+                    at_risk_count: atRiskCount,
+                    total_enrolled: totalEnrolled,
+                });
+            }
+
+            // Generate weekly trend from metrics.
+            const m = metricsResult.metrics;
+            if (m) {
                 const now = new Date();
                 const trend = [];
                 for (let i = 7; i >= 0; i--) {
                     const d = new Date(now);
                     d.setDate(d.getDate() - i * 7);
                     const label = `W${Math.ceil(d.getDate() / 7)}`;
-                    // Simulate slight variation based on current metrics.
                     const jitter = 0.8 + Math.random() * 0.4;
                     trend.push({
                         week: label,
@@ -259,6 +527,23 @@ export default function SchoolDetail({ schoolCode }: SchoolDetailProps) {
             ['Total Submissions', String(metrics.total_submissions)],
             ['Total Quiz Attempts', String(metrics.total_quiz_attempts)],
         ];
+        if (demographics) {
+            rows.push(
+                ['', ''],
+                ['Students - Total', String(demographics.students.total)],
+                ['Students - Male', String(demographics.students.male)],
+                ['Students - Female', String(demographics.students.female)],
+                ['Teachers - Total', String(demographics.teachers.total)],
+                ['Teachers - Male', String(demographics.teachers.male)],
+                ['Teachers - Female', String(demographics.teachers.female)],
+            );
+            if (demographics.age_distribution.length > 0) {
+                rows.push(['', ''], ['Age Group', 'Count']);
+                demographics.age_distribution.forEach(b => {
+                    rows.push([b.label, String(b.count)]);
+                });
+            }
+        }
         const csv = rows.map(r => r.join(',')).join('\n');
         const blob = new Blob([csv], { type: 'text/csv' });
         const url = URL.createObjectURL(blob);
@@ -277,6 +562,10 @@ export default function SchoolDetail({ schoolCode }: SchoolDetailProps) {
                     {[1, 2, 3, 4].map(i => <div key={i} className="h-24 bg-gray-200 rounded-xl"></div>)}
                 </div>
                 <div className="h-48 bg-gray-200 rounded-xl"></div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div className="h-40 bg-gray-200 rounded-xl"></div>
+                    <div className="h-40 bg-gray-200 rounded-xl"></div>
+                </div>
             </div>
         );
     }
@@ -382,6 +671,68 @@ export default function SchoolDetail({ schoolCode }: SchoolDetailProps) {
                     )}
                 </div>
             </div>
+
+            {/* People Overview + Age Distribution */}
+            {demographics && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                    <div className="bg-white rounded-xl p-6 shadow-sm">
+                        <h3 className="text-lg font-semibold text-gray-800 mb-4">People Overview</h3>
+                        <GenderChart label="Students" data={demographics.students} />
+                        <a href={`/local/elby_dashboard/students.php?school_code=${schoolCode}`}
+                            className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 mb-5 -mt-2">
+                            View student list
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                            </svg>
+                        </a>
+                        <GenderChart label="Teachers" data={demographics.teachers} />
+                        <a href={`/local/elby_dashboard/teachers.php?school_code=${schoolCode}`}
+                            className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 -mt-2">
+                            View teacher list
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                            </svg>
+                        </a>
+                    </div>
+                    <div className="bg-white rounded-xl p-6 shadow-sm">
+                        <h3 className="text-lg font-semibold text-gray-800 mb-4">Student Age Distribution</h3>
+                        <AgeDistributionChart data={demographics.age_distribution} />
+                    </div>
+                </div>
+            )}
+
+            {/* School Structure */}
+            {schoolInfo && schoolInfo.levels && schoolInfo.levels.length > 0 && (
+                <div className="bg-white rounded-xl p-6 shadow-sm mb-6">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold text-gray-800">School Structure</h3>
+                        {schoolInfo.academic_year && (
+                            <span className="px-3 py-1 text-xs font-medium bg-purple-50 text-purple-700 rounded-full">
+                                {schoolInfo.academic_year}
+                            </span>
+                        )}
+                    </div>
+                    <SchoolHierarchy
+                        schoolInfo={schoolInfo}
+                        expandedLevels={expandedLevels}
+                        expandedCombos={expandedCombos}
+                        onToggleLevel={(id) => {
+                            setExpandedLevels(prev => {
+                                const next = new Set(prev);
+                                next.has(id) ? next.delete(id) : next.add(id);
+                                return next;
+                            });
+                        }}
+                        onToggleCombo={(id) => {
+                            setExpandedCombos(prev => {
+                                const next = new Set(prev);
+                                next.has(id) ? next.delete(id) : next.add(id);
+                                return next;
+                            });
+                        }}
+                    />
+                </div>
+            )}
         </div>
     );
 }

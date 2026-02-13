@@ -30,6 +30,7 @@ export interface UserData {
     avatar: string;
     roles: string[];
     isAdmin?: boolean;
+    canManage?: boolean;
 }
 
 export interface Teacher {
@@ -49,7 +50,20 @@ export interface StatsData {
     activeUsers?: number;
     totalTeachers: number;
     totalStudents: number;
-    teachers: Teacher[];
+    activeToday: number;
+    activeThisWeek: number;
+    atRisk: number;
+    neverLoggedIn: number;
+    totalSchools: number;
+    maleStudents: number;
+    femaleStudents: number;
+    maleTeachers: number;
+    femaleTeachers: number;
+    gradeDistribution: Array<{ label: string; count: number }>;
+    programDistribution: Array<{ label: string; count: number }>;
+    statusDistribution: Array<{ label: string; count: number }>;
+    ageDistribution: Array<{ label: string; count: number }>;
+    positionDistribution: Array<{ label: string; count: number }>;
 }
 
 export interface MenuItem {
@@ -81,7 +95,7 @@ export interface ThemeConfig {
     menuVisibility: Record<string, boolean>;
 }
 
-export type PageId = 'home' | 'completion' | 'courses' | 'schools' | 'school_detail' | 'students' | 'admin';
+export type PageId = 'home' | 'completion' | 'courses' | 'schools' | 'school_detail' | 'students' | 'teachers' | 'traffic' | 'accesslog' | 'admin';
 
 // Metrics types
 export interface SchoolMetrics {
@@ -115,6 +129,9 @@ export interface StudentMetric {
     fullname: string;
     sdms_id: string;
     program: string;
+    position: string;
+    gender: string;
+    age: number | null;
     school_name: string;
     school_code: string;
     last_access: number;
@@ -204,4 +221,128 @@ export interface CoursesReportData {
     course_report: CourseReport | null;
     available_years: AcademicYear[];
     selected_year: number;
+}
+
+// Trades report types
+export interface TradeSchool {
+    school_name: string;
+    school_code: string;
+}
+
+export interface TradeData {
+    trade_name: string;
+    trade_code: string;
+    trade_desc: string;
+    school_count: number;
+    schools: TradeSchool[];
+}
+
+// School user counts types
+export interface SchoolUserCounts {
+    school_code: string;
+    school_name: string;
+    student_count: number;
+    teacher_count: number;
+}
+
+// School demographics types
+export interface GenderBreakdown {
+    total: number;
+    male: number;
+    female: number;
+}
+
+export interface AgeBucket {
+    label: string;
+    count: number;
+}
+
+export interface SchoolDemographics {
+    success: boolean;
+    error: string;
+    students: GenderBreakdown;
+    teachers: GenderBreakdown;
+    age_distribution: AgeBucket[];
+}
+
+// School info hierarchy types
+export interface SchoolInfoClassgroup {
+    class_id: string;
+    class_name: string;
+}
+
+export interface SchoolInfoGrade {
+    grade_code: string;
+    grade_name: string;
+    classgroups: SchoolInfoClassgroup[];
+}
+
+export interface SchoolInfoCombination {
+    combination_code: string;
+    combination_name: string;
+    combination_desc: string;
+    grades: SchoolInfoGrade[];
+}
+
+export interface SchoolInfoLevel {
+    level_id: string;
+    level_name: string;
+    level_desc: string;
+    combinations: SchoolInfoCombination[];
+}
+
+export interface SchoolInfoResponse {
+    success: boolean;
+    error: string;
+    school_code: string;
+    school_name: string;
+    region_code: string;
+    is_active: number;
+    has_tvet: number;
+    academic_year: string;
+    levels: SchoolInfoLevel[];
+    last_synced: number;
+}
+
+// Traffic report types
+export interface TrafficDataPoint {
+    period_label: string;
+    total_actions: number;
+    unique_users: number;
+    period_start: number;
+}
+
+// Unlinked user type (for admin SDMS linking)
+export interface UnlinkedUser {
+    userid: number;
+    fullname: string;
+    username: string;
+    email: string;
+}
+
+export interface UnlinkedUsersResponse {
+    users: UnlinkedUser[];
+    total_count: number;
+    page: number;
+    perpage: number;
+}
+
+// Access log types
+export interface AccessLogEntry {
+    user_fullname: string;
+    sdms_id: string;
+    user_type: string;
+    school_name: string;
+    school_code: string;
+    course_name: string;
+    access_time: number;
+    action: string;
+    target: string;
+}
+
+export interface AccessLogResponse {
+    entries: AccessLogEntry[];
+    total_count: number;
+    page: number;
+    perpage: number;
 }

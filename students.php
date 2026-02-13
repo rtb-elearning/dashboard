@@ -25,6 +25,9 @@
 require_once('../../config.php');
 require_once($CFG->dirroot . '/local/elby_dashboard/lib.php');
 
+// Get optional parameters.
+$schoolcode = optional_param('school_code', '', PARAM_TEXT);
+
 // Require login.
 require_login();
 
@@ -35,7 +38,11 @@ $PAGE->set_context($context);
 // Check capability.
 require_capability('local/elby_dashboard:viewreports', $context);
 
-$PAGE->set_url(new moodle_url('/local/elby_dashboard/students.php'));
+$urlparams = [];
+if (!empty($schoolcode)) {
+    $urlparams['school_code'] = $schoolcode;
+}
+$PAGE->set_url(new moodle_url('/local/elby_dashboard/students.php', $urlparams));
 $PAGE->set_pagelayout('standard');
 $PAGE->set_title(get_string('page_title', 'local_elby_dashboard') . ' - ' .
     get_string('student_list', 'local_elby_dashboard'));
@@ -98,6 +105,9 @@ $themeconfig = [
         'settings' => (bool) (get_config('local_elby_dashboard', 'showmenu_settings') ?? 1),
         'schools' => $canviewreports,
         'students' => $canviewreports,
+        'teachers' => $canviewreports,
+        'traffic' => $canviewreports,
+        'accesslog' => $canviewreports,
         'admin' => $isadmin,
     ],
 ];
@@ -137,6 +147,7 @@ $templatecontext = [
     'sidenav_config_json' => json_encode($sidenavconfig, JSON_HEX_QUOT | JSON_HEX_APOS),
     'theme_config_json' => json_encode($themeconfig, JSON_HEX_QUOT | JSON_HEX_APOS),
     'active_page' => 'students',
+    'school_code' => $schoolcode,
 ];
 
 // Output the page.

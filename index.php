@@ -103,6 +103,9 @@ $themeconfig = [
         'settings' => (bool) (get_config('local_elby_dashboard', 'showmenu_settings') ?? 1),
         'schools' => has_capability('local/elby_dashboard:viewreports', $context),
         'students' => has_capability('local/elby_dashboard:viewreports', $context),
+        'teachers' => has_capability('local/elby_dashboard:viewreports', $context),
+        'traffic' => has_capability('local/elby_dashboard:viewreports', $context),
+        'accesslog' => has_capability('local/elby_dashboard:viewreports', $context),
         'admin' => has_capability('moodle/site:config', $context),
     ],
 ];
@@ -123,36 +126,114 @@ $userdata = [
     'roles' => $userroles,
 ];
 
-// Get role IDs for students and teachers.
-$studentroleid = $DB->get_field('role', 'id', ['shortname' => 'student']);
-$teacherroleid = $DB->get_field('role', 'id', ['shortname' => 'editingteacher']);
+// Count students and teachers from SDMS tables + schools count.
+$totalstudents = (int) $DB->count_records_select('elby_sdms_users', "user_type = 'student'");
+$totalteachers = (int) $DB->count_records('elby_teachers');
+$totalschools = (int) $DB->count_records('elby_schools');
 
-// Count students and teachers by role assignments.
-$totalstudents = $studentroleid ? $DB->count_records('role_assignments', ['roleid' => $studentroleid]) : 0;
-$totalteachers = $teacherroleid ? $DB->count_records('role_assignments', ['roleid' => $teacherroleid]) : 0;
+// Engagement stats from user lastaccess.
+$now = time();
+$todaystart = strtotime('today midnight');
+$weekago = $now - (7 * 86400);
 
-// Get teacher list (limit 5) with user details.
-$teachers = [];
-if ($teacherroleid) {
-    $teacherrecords = $DB->get_records_sql(
-        "SELECT DISTINCT u.id, u.firstname, u.lastname, u.email, u.picture
-         FROM {user} u
-         JOIN {role_assignments} ra ON ra.userid = u.id
-         WHERE ra.roleid = ? AND u.deleted = 0
-         ORDER BY u.lastname, u.firstname
-         LIMIT 5",
-        [$teacherroleid]
-    );
-    foreach ($teacherrecords as $teacher) {
-        $teachers[] = [
-            'id' => $teacher->id,
-            'firstname' => $teacher->firstname,
-            'lastname' => $teacher->lastname,
-            'fullname' => fullname($teacher),
-            'email' => $teacher->email,
-            'avatar' => $OUTPUT->get_generated_image_for_id($teacher->id),
-        ];
+$activetoday = $DB->count_records_select('user',
+    'lastaccess >= ? AND deleted = 0 AND id > 1', [$todaystart]);
+$activethisweek = $DB->count_records_select('user',
+    'lastaccess >= ? AND deleted = 0 AND id > 1', [$weekago]);
+$atrisk = $DB->count_records_select('user',
+    'lastaccess > 0 AND lastaccess < ? AND deleted = 0 AND id > 1', [$weekago]);
+$neverloggedin = $DB->count_records_select('user',
+    'lastaccess = 0 AND deleted = 0 AND id > 1', []);
+
+// Gender breakdown from SDMS student data.
+$malestudents = (int) $DB->count_records_select('elby_students', "gender = 'MALE'", []);
+$femalestudents = (int) $DB->count_records_select('elby_students', "gender = 'FEMALE'", []);
+
+// Grade level distribution.
+$graderows = $DB->get_records_sql(
+    "SELECT class_grade, COUNT(*) as cnt
+       FROM {elby_students}
+      WHERE class_grade IS NOT NULL AND class_grade != ''
+   GROUP BY class_grade
+   ORDER BY class_grade");
+$gradedist = [];
+foreach ($graderows as $row) {
+    $gradedist[] = ['label' => $row->class_grade, 'count' => (int) $row->cnt];
+}
+
+// Program/trade distribution (top 8).
+$programrows = $DB->get_records_sql(
+    "SELECT program, COUNT(*) as cnt
+       FROM {elby_students}
+      WHERE program IS NOT NULL AND program != ''
+   GROUP BY program
+   ORDER BY cnt DESC",
+    null, 0, 8);
+$programdist = [];
+foreach ($programrows as $row) {
+    $programdist[] = ['label' => $row->program, 'count' => (int) $row->cnt];
+}
+
+// Student SDMS status distribution.
+$statusrows = $DB->get_records_sql(
+    "SELECT su.sdms_status, COUNT(*) as cnt
+       FROM {elby_sdms_users} su
+      WHERE su.user_type = 'student'
+        AND su.sdms_status IS NOT NULL AND su.sdms_status != ''
+   GROUP BY su.sdms_status
+   ORDER BY cnt DESC");
+$statusdist = [];
+foreach ($statusrows as $row) {
+    $statusdist[] = ['label' => $row->sdms_status, 'count' => (int) $row->cnt];
+}
+
+// Age distribution (computed from date_of_birth).
+$today = new DateTime();
+$dobrows = $DB->get_records_sql(
+    "SELECT date_of_birth FROM {elby_students}
+      WHERE date_of_birth IS NOT NULL AND date_of_birth != ''");
+$agebuckets = ['Under 16' => 0, '16-17' => 0, '18-19' => 0, '20-21' => 0, '22-24' => 0, '25+' => 0];
+foreach ($dobrows as $row) {
+    $dob = DateTime::createFromFormat('Y-m-d', $row->date_of_birth);
+    if (!$dob) {
+        continue;
     }
+    $age = $dob->diff($today)->y;
+    if ($age < 16) {
+        $agebuckets['Under 16']++;
+    } else if ($age <= 17) {
+        $agebuckets['16-17']++;
+    } else if ($age <= 19) {
+        $agebuckets['18-19']++;
+    } else if ($age <= 21) {
+        $agebuckets['20-21']++;
+    } else if ($age <= 24) {
+        $agebuckets['22-24']++;
+    } else {
+        $agebuckets['25+']++;
+    }
+}
+$agedist = [];
+foreach ($agebuckets as $label => $count) {
+    if ($count > 0) {
+        $agedist[] = ['label' => $label, 'count' => $count];
+    }
+}
+
+// Teacher gender breakdown.
+$maleteachers = (int) $DB->count_records_select('elby_teachers', "gender = 'MALE'", []);
+$femaleteachers = (int) $DB->count_records_select('elby_teachers', "gender = 'FEMALE'", []);
+
+// Teacher position distribution.
+$positionrows = $DB->get_records_sql(
+    "SELECT position, COUNT(*) as cnt
+       FROM {elby_teachers}
+      WHERE position IS NOT NULL AND position != ''
+   GROUP BY position
+   ORDER BY cnt DESC");
+$positiondist = [];
+foreach ($positionrows as $row) {
+    $positiondist[] = ['label' => $row->position, 'count' => (int) $row->cnt];
 }
 
 // Prepare stats data for Preact.
@@ -161,9 +242,22 @@ $statsdata = [
     'totalUsers' => $DB->count_records('user', ['deleted' => 0]) - 1, // Exclude guest.
     'totalStudents' => $totalstudents,
     'totalTeachers' => $totalteachers,
+    'totalSchools' => $totalschools,
     'totalEnrollments' => $DB->count_records('user_enrolments'),
     'totalActivities' => $DB->count_records('course_modules'),
-    'teachers' => $teachers,
+    'activeToday' => $activetoday,
+    'activeThisWeek' => $activethisweek,
+    'atRisk' => $atrisk,
+    'neverLoggedIn' => $neverloggedin,
+    'maleStudents' => $malestudents,
+    'femaleStudents' => $femalestudents,
+    'gradeDistribution' => $gradedist,
+    'programDistribution' => $programdist,
+    'statusDistribution' => $statusdist,
+    'ageDistribution' => $agedist,
+    'maleTeachers' => $maleteachers,
+    'femaleTeachers' => $femaleteachers,
+    'positionDistribution' => $positiondist,
 ];
 
 // Prepare data for template.

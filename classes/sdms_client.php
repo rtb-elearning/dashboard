@@ -61,8 +61,8 @@ class sdms_client {
         $this->timeout = (int) (get_config('local_elby_dashboard', 'sdms_timeout') ?: 30);
 
         if (empty($this->baseurl)) {
-            throw new \moodle_exception('sdmsapierror', 'local_elby_dashboard', '', null,
-                'SDMS API URL is not configured');
+            throw new \moodle_exception('sdmsapierror', 'local_elby_dashboard', '',
+                'SDMS API URL is not configured. Please contact your administrator.');
         }
     }
 
@@ -132,7 +132,8 @@ class sdms_client {
                 if ($data === null && json_last_error() !== JSON_ERROR_NONE) {
                     $lasterror = 'Invalid JSON response';
                     $this->log_request($url, $httpcode, $responsetime, $entitytype, $entityid, $lasterror);
-                    throw new \moodle_exception('sdmsapierror', 'local_elby_dashboard', '', null, $lasterror);
+                    throw new \moodle_exception('sdmsapierror', 'local_elby_dashboard', '',
+                        'SDMS returned an invalid response. Please try again later.', $lasterror);
                 }
 
                 // API may return an array — unwrap the first element.
@@ -144,6 +145,17 @@ class sdms_client {
                 if (empty($data) || (is_object($data) && empty((array) $data))) {
                     $this->log_request($url, $httpcode, $responsetime, $entitytype, $entityid, 'Empty response');
                     return null;
+                }
+
+                // SDMS returns HTTP 200 with error body for server-side bugs.
+                // Detect: {"status": 500, "message": "..."} pattern.
+                if (is_object($data) && isset($data->status) && (int) $data->status >= 400) {
+                    $errmsg = $data->message ?? 'Unknown error';
+                    $this->log_request($url, $httpcode, $responsetime, $entitytype, $entityid, 'SDMS error: ' . $errmsg);
+                    $usermsg = 'SDMS server error for this ' . $entitytype .
+                        '. This is a known issue with the SDMS system.' .
+                        ' Please try again later or contact the SDMS team.';
+                    throw new \moodle_exception('sdmsapierror', 'local_elby_dashboard', '', $usermsg, $errmsg);
                 }
 
                 $this->log_request($url, $httpcode, $responsetime, $entitytype, $entityid);
@@ -185,7 +197,8 @@ class sdms_client {
             }
         }
 
-        throw new \moodle_exception('sdmsapierror', 'local_elby_dashboard', '', null,
+        throw new \moodle_exception('sdmsapierror', 'local_elby_dashboard', '',
+            'SDMS API is currently unavailable. Please try again later.',
             "SDMS API error after {$attempt} attempt(s): {$lasterror}");
     }
 

@@ -21,7 +21,8 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-import type { UserData, StatsData, ThemeConfig } from '../types';
+import { useState, useEffect } from 'preact/hooks';
+import type { UserData, StatsData, ThemeConfig, SchoolUserCounts, TrafficDataPoint } from '../types';
 
 interface DashboardProps {
     user: UserData;
@@ -29,31 +30,19 @@ interface DashboardProps {
     themeConfig: ThemeConfig;
 }
 
-// Sample attendance data (requires mod_attendance for real data)
-const attendanceData = [
-    { day: 'Mon', present: 45, absent: 25 },
-    { day: 'Tue', present: 78, absent: 55 },
-    { day: 'Wed', present: 60, absent: 30 },
-    { day: 'Thu', present: 55, absent: 45 },
-    { day: 'Fri', present: 70, absent: 40 },
-];
-
-// Course enrollment data (replacing earnings)
-const enrollmentData = [
-    { day: 1, enrollments: 120, completions: 45 },
-    { day: 5, enrollments: 185, completions: 78 },
-    { day: 10, enrollments: 240, completions: 125 },
-    { day: 15, enrollments: 380, completions: 210 },
-    { day: 20, enrollments: 520, completions: 295 },
-    { day: 25, enrollments: 450, completions: 340 },
-    { day: 30, enrollments: 380, completions: 310 },
-];
+function ajaxCall(methodname: string, args: Record<string, any>): Promise<any> {
+    return new Promise((resolve, reject) => {
+        require(['core/ajax'], (Ajax: any) => {
+            Ajax.call([{ methodname, args }])[0].then(resolve).catch(reject);
+        });
+    });
+}
 
 // Stat Card Component
-function StatCard({ icon, value, label, bgColor, customBgColor }: { icon: JSX.Element; value: string; label: string; bgColor: string; customBgColor?: string }) {
+function StatCard({ icon, value, label, customBgColor }: { icon: JSX.Element; value: string; label: string; customBgColor?: string }) {
     return (
         <div
-            className={`${bgColor} rounded-xl p-4 flex items-center gap-4`}
+            className="rounded-xl p-4 flex items-center gap-4"
             style={customBgColor ? { backgroundColor: customBgColor } : undefined}
         >
             <div className="w-12 h-12 rounded-full bg-white/30 flex items-center justify-center">
@@ -67,154 +56,102 @@ function StatCard({ icon, value, label, bgColor, customBgColor }: { icon: JSX.El
     );
 }
 
-// Donut Chart Component
-function DonutChart({ total, boys, girls }: { total: number; boys: number; girls: number }) {
-    const boysPercent = (boys / total) * 100;
-    const girlsPercent = (girls / total) * 100;
+// Engagement Donut Chart
+function EngagementDonut({ activeThisWeek, atRisk, neverLoggedIn }: { activeThisWeek: number; atRisk: number; neverLoggedIn: number }) {
+    const total = activeThisWeek + atRisk + neverLoggedIn;
+    if (total === 0) {
+        return (
+            <div className="relative w-36 h-36">
+                <svg viewBox="0 0 100 100" className="w-full h-full">
+                    <circle cx="50" cy="50" r="40" fill="none" stroke="#e5e7eb" strokeWidth="14" />
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-2xl font-bold text-gray-400">0</span>
+                </div>
+            </div>
+        );
+    }
+
+    const circumference = 2 * Math.PI * 40; // ~251.2
+    const activeLen = (activeThisWeek / total) * circumference;
+    const atRiskLen = (atRisk / total) * circumference;
+    const neverLen = (neverLoggedIn / total) * circumference;
 
     return (
-        <div className="relative w-40 h-40">
+        <div className="relative w-36 h-36">
             <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
-                {/* Background circle */}
+                {/* Background */}
+                <circle cx="50" cy="50" r="40" fill="none" stroke="#e5e7eb" strokeWidth="14" />
+                {/* Active this week - green */}
                 <circle
-                    cx="50"
-                    cy="50"
-                    r="40"
-                    fill="none"
-                    stroke="#e0f2fe"
-                    strokeWidth="15"
+                    cx="50" cy="50" r="40" fill="none"
+                    stroke="#22c55e" strokeWidth="14"
+                    strokeDasharray={`${activeLen} ${circumference - activeLen}`}
+                    strokeDashoffset="0"
                 />
-                {/* Boys segment (cyan) */}
+                {/* At risk - amber */}
                 <circle
-                    cx="50"
-                    cy="50"
-                    r="40"
-                    fill="none"
-                    stroke="#22d3ee"
-                    strokeWidth="15"
-                    strokeDasharray={`${boysPercent * 2.51} ${251.2 - boysPercent * 2.51}`}
-                    strokeLinecap="round"
+                    cx="50" cy="50" r="40" fill="none"
+                    stroke="#f59e0b" strokeWidth="14"
+                    strokeDasharray={`${atRiskLen} ${circumference - atRiskLen}`}
+                    strokeDashoffset={`${-activeLen}`}
                 />
-                {/* Girls segment (pink) */}
+                {/* Never logged in - red */}
                 <circle
-                    cx="50"
-                    cy="50"
-                    r="40"
-                    fill="none"
-                    stroke="#f0abfc"
-                    strokeWidth="15"
-                    strokeDasharray={`${girlsPercent * 2.51} ${251.2 - girlsPercent * 2.51}`}
-                    strokeDashoffset={`${-boysPercent * 2.51}`}
-                    strokeLinecap="round"
+                    cx="50" cy="50" r="40" fill="none"
+                    stroke="#ef4444" strokeWidth="14"
+                    strokeDasharray={`${neverLen} ${circumference - neverLen}`}
+                    strokeDashoffset={`${-(activeLen + atRiskLen)}`}
                 />
             </svg>
             <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-3xl font-bold text-gray-800">{total}</span>
+                <span className="text-2xl font-bold text-gray-800">{total}</span>
             </div>
         </div>
     );
 }
 
-// Bar Chart Component
-function AttendanceChart({ data }: { data: typeof attendanceData }) {
-    const maxValue = 100;
-
-    return (
-        <div className="flex items-end justify-between h-48 gap-4 px-4">
-            {data.map((item, index) => (
-                <div key={item.day} className="flex flex-col items-center gap-1 flex-1">
-                    <div className="flex gap-1 items-end h-36 w-full justify-center">
-                        {/* Present bar */}
-                        <div
-                            className="w-3 bg-cyan-400 rounded-t-sm transition-all relative group"
-                            style={{ height: `${(item.present / maxValue) * 100}%` }}
-                        >
-                            {index === 1 && (
-                                <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded">
-                                    55%
-                                </div>
-                            )}
-                        </div>
-                        {/* Absent bar */}
-                        <div
-                            className="w-3 bg-purple-300 rounded-t-sm transition-all"
-                            style={{ height: `${(item.absent / maxValue) * 100}%` }}
-                        />
-                    </div>
-                    <span className="text-xs text-gray-500">{item.day}</span>
+// Gender Donut Chart
+function GenderDonut({ male, female }: { male: number; female: number }) {
+    const total = male + female;
+    if (total === 0) {
+        return (
+            <div className="relative w-36 h-36">
+                <svg viewBox="0 0 100 100" className="w-full h-full">
+                    <circle cx="50" cy="50" r="40" fill="none" stroke="#e5e7eb" strokeWidth="14" />
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-2xl font-bold text-gray-400">0</span>
                 </div>
-            ))}
-        </div>
-    );
-}
+            </div>
+        );
+    }
 
-// Course Enrollment Chart Component (replacing Earnings)
-function EnrollmentChart({ data }: { data: typeof enrollmentData }) {
-    const maxValue = 600;
-    const width = 300;
-    const height = 150;
-
-    // Create path for enrollments
-    const enrollmentPath = data.map((d, i) => {
-        const x = (i / (data.length - 1)) * width;
-        const y = height - (d.enrollments / maxValue) * height;
-        return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
-    }).join(' ');
-
-    // Create path for completions
-    const completionPath = data.map((d, i) => {
-        const x = (i / (data.length - 1)) * width;
-        const y = height - (d.completions / maxValue) * height;
-        return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
-    }).join(' ');
-
-    // Create filled area path
-    const enrollmentAreaPath = enrollmentPath + ` L ${width} ${height} L 0 ${height} Z`;
-    const completionAreaPath = completionPath + ` L ${width} ${height} L 0 ${height} Z`;
+    const circumference = 2 * Math.PI * 40;
+    const maleLen = (male / total) * circumference;
+    const femaleLen = (female / total) * circumference;
 
     return (
-        <div className="relative h-40">
-            <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full" preserveAspectRatio="none">
-                {/* Grid lines */}
-                {[0, 25, 50, 75, 100].map((pct) => (
-                    <line
-                        key={pct}
-                        x1="0"
-                        y1={height - (pct / 100) * height}
-                        x2={width}
-                        y2={height - (pct / 100) * height}
-                        stroke="#e5e7eb"
-                        strokeWidth="1"
-                        strokeDasharray="4"
-                    />
-                ))}
-
-                {/* Completions area */}
-                <path d={completionAreaPath} fill="rgba(196, 181, 253, 0.3)" />
-                <path d={completionPath} fill="none" stroke="#a78bfa" strokeWidth="2" />
-
-                {/* Enrollments area */}
-                <path d={enrollmentAreaPath} fill="rgba(34, 211, 238, 0.3)" />
-                <path d={enrollmentPath} fill="none" stroke="#22d3ee" strokeWidth="2" />
-
-                {/* Tooltip indicator */}
-                <circle cx={(4 / 6) * width} cy={height - (520 / maxValue) * height} r="4" fill="#22d3ee" />
+        <div className="relative w-36 h-36">
+            <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
+                <circle cx="50" cy="50" r="40" fill="none" stroke="#e5e7eb" strokeWidth="14" />
+                {/* Male - blue */}
+                <circle
+                    cx="50" cy="50" r="40" fill="none"
+                    stroke="#3b82f6" strokeWidth="14"
+                    strokeDasharray={`${maleLen} ${circumference - maleLen}`}
+                    strokeDashoffset="0"
+                />
+                {/* Female - pink */}
+                <circle
+                    cx="50" cy="50" r="40" fill="none"
+                    stroke="#ec4899" strokeWidth="14"
+                    strokeDasharray={`${femaleLen} ${circumference - femaleLen}`}
+                    strokeDashoffset={`${-maleLen}`}
+                />
             </svg>
-
-            {/* Tooltip */}
-            <div className="absolute top-4 right-20 bg-gray-800 text-white text-xs px-2 py-1 rounded">
-                Enrollments<br />520
-            </div>
-
-            {/* X-axis labels */}
-            <div className="flex justify-between text-xs text-gray-500 mt-2">
-                <span>01</span>
-                <span>05</span>
-                <span>10</span>
-                <span>15</span>
-                <span>20</span>
-                <span>25</span>
-                <span>30</span>
+            <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-2xl font-bold text-gray-800">{total}</span>
             </div>
         </div>
     );
@@ -245,197 +182,493 @@ const CoursesIcon = () => (
     </svg>
 );
 
+const SchoolsIcon = () => (
+    <svg className="w-6 h-6 text-blue-600" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 3L1 9l4 2.18v6L12 21l7-3.82v-6l2-1.09V17h2V9L12 3zm6.82 6L12 12.72 5.18 9 12 5.28 18.82 9zM17 15.99l-5 2.73-5-2.73v-3.72L12 15l5-2.73v3.72z"/>
+    </svg>
+);
+
+// Status donut color map
+const statusColors: Record<string, string> = {
+    CONTINUING: '#22c55e',
+    NEW: '#3b82f6',
+    INACTIVE: '#9ca3af',
+    GRADUATED: '#8b5cf6',
+    TRANSFERRED: '#f59e0b',
+};
+
+// Status Donut Chart
+function StatusDonut({ data }: { data: Array<{ label: string; count: number }> }) {
+    const total = data.reduce((sum, d) => sum + d.count, 0);
+    if (total === 0) {
+        return (
+            <div className="relative w-28 h-28">
+                <svg viewBox="0 0 100 100" className="w-full h-full">
+                    <circle cx="50" cy="50" r="40" fill="none" stroke="#e5e7eb" strokeWidth="14" />
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-lg font-bold text-gray-400">0</span>
+                </div>
+            </div>
+        );
+    }
+
+    const circumference = 2 * Math.PI * 40;
+    let offset = 0;
+
+    return (
+        <div className="relative w-28 h-28">
+            <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
+                <circle cx="50" cy="50" r="40" fill="none" stroke="#e5e7eb" strokeWidth="14" />
+                {data.map((d) => {
+                    const len = (d.count / total) * circumference;
+                    const currentOffset = offset;
+                    offset += len;
+                    return (
+                        <circle
+                            key={d.label}
+                            cx="50" cy="50" r="40" fill="none"
+                            stroke={statusColors[d.label] || '#6b7280'}
+                            strokeWidth="14"
+                            strokeDasharray={`${len} ${circumference - len}`}
+                            strokeDashoffset={`${-currentOffset}`}
+                        />
+                    );
+                })}
+            </svg>
+            <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-lg font-bold text-gray-800">{total.toLocaleString()}</span>
+            </div>
+        </div>
+    );
+}
+
 export default function Dashboard({ user, stats, themeConfig }: DashboardProps) {
+    const [schools, setSchools] = useState<SchoolUserCounts[]>([]);
+    const [schoolsLoading, setSchoolsLoading] = useState(true);
+    const [traffic, setTraffic] = useState<TrafficDataPoint[]>([]);
+    const [trafficLoading, setTrafficLoading] = useState(true);
+
+    useEffect(() => {
+        // Fetch school user counts
+        ajaxCall('local_elby_dashboard_get_school_user_counts', {})
+            .then((resp: { schools: SchoolUserCounts[] }) => {
+                const data = resp.schools || [];
+                // Sort by student_count descending, take top 8
+                const sorted = [...data].sort((a, b) => b.student_count - a.student_count).slice(0, 8);
+                setSchools(sorted);
+            })
+            .catch(() => setSchools([]))
+            .finally(() => setSchoolsLoading(false));
+
+        // Fetch platform traffic (last 7 days)
+        ajaxCall('local_elby_dashboard_get_platform_traffic', { period: 'daily', days_back: 7 })
+            .then((resp: { data: TrafficDataPoint[] }) => setTraffic(resp.data || []))
+            .catch(() => setTraffic([]))
+            .finally(() => setTrafficLoading(false));
+    }, []);
+
+    const schoolMaxCount = schools.length > 0 ? Math.max(...schools.map(s => s.student_count)) : 1;
+    const trafficMax = traffic.length > 0 ? Math.max(...traffic.map(t => t.unique_users), 1) : 1;
+
     return (
         <div className="p-2 sm:p-4 lg:p-6 bg-gray-50 min-h-screen">
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            {/* Row 1: Stats Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+                <StatCard
+                    icon={<SchoolsIcon />}
+                    value={stats.totalSchools.toLocaleString()}
+                    label="Schools"
+                    customBgColor="#dbeafe"
+                />
                 <StatCard
                     icon={<StudentsIcon />}
                     value={stats.totalStudents.toLocaleString()}
-                    label="Number of Students"
-                    bgColor=""
+                    label="Students"
                     customBgColor={themeConfig.statCard1Color}
                 />
                 <StatCard
                     icon={<TeacherIcon />}
                     value={stats.totalTeachers.toLocaleString()}
-                    label="Number of Teachers"
-                    bgColor=""
+                    label="Teachers"
                     customBgColor={themeConfig.statCard2Color}
                 />
                 <StatCard
                     icon={<EmployeeIcon />}
                     value={stats.totalUsers.toLocaleString()}
                     label="Total Users"
-                    bgColor=""
                     customBgColor={themeConfig.statCard3Color}
                 />
                 <StatCard
                     icon={<CoursesIcon />}
                     value={stats.totalCourses.toLocaleString()}
-                    label="Total Courses"
-                    bgColor=""
+                    label="Courses"
                     customBgColor={themeConfig.statCard4Color}
                 />
             </div>
 
-            {/* Middle Section: Students & Teacher List */}
+            {/* Row 2: Schools Overview & Engagement Summary */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                {/* Students Donut Chart */}
+                {/* Section A: Schools Overview */}
                 <div className="bg-white rounded-xl p-6 shadow-sm">
                     <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-lg font-semibold text-gray-800">Students</h3>
-                        <select className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500">
-                            <option>Class 9</option>
-                            <option>Class 8</option>
-                            <option>Class 7</option>
-                        </select>
+                        <h3 className="text-lg font-semibold text-gray-800">Schools Overview</h3>
+                        <span className="text-sm text-gray-500">Top {schools.length} by students</span>
                     </div>
-                    <div className="flex items-center justify-center gap-8">
-                        {/* Gender breakdown uses estimated 55/45 ratio - real data requires custom profile field */}
-                        <DonutChart
-                            total={stats.totalStudents}
-                            boys={Math.round(stats.totalStudents * 0.55)}
-                            girls={Math.round(stats.totalStudents * 0.45)}
-                        />
+                    {schoolsLoading ? (
                         <div className="space-y-3">
-                            <div className="flex items-center gap-2">
-                                <span className="w-3 h-3 rounded-full bg-cyan-400"></span>
-                                <span className="text-sm text-gray-600">Boys : {Math.round(stats.totalStudents * 0.55).toLocaleString()}</span>
+                            {[...Array(5)].map((_, i) => (
+                                <div key={i} className="h-6 bg-gray-100 rounded animate-pulse" />
+                            ))}
+                        </div>
+                    ) : schools.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500">
+                            <p>No school data available</p>
+                        </div>
+                    ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                            {schools.map((school) => (
+                                <div key={school.school_code} className="flex items-center gap-3">
+                                    <div className="w-28 text-xs text-gray-600 truncate flex-shrink-0" title={school.school_name}>
+                                        {school.school_name}
+                                    </div>
+                                    <div className="flex-1 h-6 bg-gray-100 rounded-full overflow-hidden">
+                                        <div
+                                            className="h-full bg-blue-500 rounded-full transition-all opacity-80 hover:opacity-100"
+                                            style={{ width: `${(school.student_count / schoolMaxCount) * 100}%` }}
+                                        />
+                                    </div>
+                                    <span className="text-xs font-medium text-gray-700 w-10 text-right flex-shrink-0">
+                                        {school.student_count}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                {/* Section B: User Overview */}
+                <div className="bg-white rounded-xl p-6 shadow-sm">
+                    <h3 className="text-lg font-semibold text-gray-800 mb-4">User Overview</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        {/* Gender Demographics */}
+                        <div>
+                            <h4 className="text-sm font-medium text-gray-600 mb-3">Student Demographics</h4>
+                            <div className="flex flex-col items-center gap-3">
+                                <GenderDonut
+                                    male={stats.maleStudents}
+                                    female={stats.femaleStudents}
+                                />
+                                <div className="flex items-center gap-3 flex-wrap justify-center">
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+                                        <span className="text-xs text-gray-600">Male: {stats.maleStudents.toLocaleString()}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="w-2.5 h-2.5 rounded-full bg-pink-500"></span>
+                                        <span className="text-xs text-gray-600">Female: {stats.femaleStudents.toLocaleString()}</span>
+                                    </div>
+                                </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                                <span className="w-3 h-3 rounded-full bg-fuchsia-300"></span>
-                                <span className="text-sm text-gray-600">Girls : {Math.round(stats.totalStudents * 0.45).toLocaleString()}</span>
+                        </div>
+
+                        {/* Engagement Status */}
+                        <div>
+                            <h4 className="text-sm font-medium text-gray-600 mb-3">Engagement Status</h4>
+                            <div className="flex flex-col items-center gap-3">
+                                <EngagementDonut
+                                    activeThisWeek={stats.activeThisWeek}
+                                    atRisk={stats.atRisk}
+                                    neverLoggedIn={stats.neverLoggedIn}
+                                />
+                                <div className="flex items-center gap-3 flex-wrap justify-center">
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="w-2.5 h-2.5 rounded-full bg-green-500"></span>
+                                        <span className="text-xs text-gray-500">Active</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+                                        <span className="text-xs text-gray-500">At Risk</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="w-2.5 h-2.5 rounded-full bg-red-500"></span>
+                                        <span className="text-xs text-gray-500">Never</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
 
-                {/* Teacher List */}
-                <div className="bg-white rounded-xl p-6 shadow-sm">
-                    <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-lg font-semibold text-gray-800">Teacher List</h3>
-                        <span className="text-sm text-gray-500">{stats.totalTeachers} total</span>
-                    </div>
-                    <div className="overflow-x-auto">
-                        {stats.teachers.length > 0 ? (
-                            <table className="w-full text-sm">
-                                <thead>
-                                    <tr className="text-left text-gray-500 border-b border-gray-100">
-                                        <th className="pb-3 font-medium">Name</th>
-                                        <th className="pb-3 font-medium">Email</th>
-                                        <th className="pb-3 font-medium">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {stats.teachers.map((teacher) => (
-                                        <tr key={teacher.id} className="border-b border-gray-50">
-                                            <td className="py-3">
-                                                <div className="flex items-center gap-2">
-                                                    {teacher.avatar ? (
-                                                        <div
-                                                            className="w-8 h-8 rounded-full overflow-hidden"
-                                                            dangerouslySetInnerHTML={{ __html: teacher.avatar }}
-                                                        />
-                                                    ) : (
-                                                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center text-white text-xs font-medium">
-                                                            {teacher.firstname.charAt(0)}{teacher.lastname.charAt(0)}
-                                                        </div>
-                                                    )}
-                                                    <span className="text-gray-800">{teacher.fullname}</span>
-                                                </div>
-                                            </td>
-                                            <td className="py-3 text-cyan-600">{teacher.email}</td>
-                                            <td className="py-3">
-                                                <a
-                                                    href={`/user/profile.php?id=${teacher.id}`}
-                                                    className="text-rtb-blue hover:underline text-sm"
-                                                >
-                                                    View Profile
-                                                </a>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        ) : (
-                            <div className="text-center py-8 text-gray-500">
-                                <p>No teachers found</p>
-                            </div>
-                        )}
+                    {/* Stat Badges */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 pt-4 border-t border-gray-100">
+                        <div className="bg-emerald-50 rounded-lg p-3">
+                            <p className="text-xs text-gray-500">Active Today</p>
+                            <p className="text-lg font-bold text-emerald-700">{stats.activeToday.toLocaleString()}</p>
+                        </div>
+                        <div className="bg-green-50 rounded-lg p-3">
+                            <p className="text-xs text-gray-500">Active This Week</p>
+                            <p className="text-lg font-bold text-green-700">{stats.activeThisWeek.toLocaleString()}</p>
+                        </div>
+                        <div className="bg-amber-50 rounded-lg p-3">
+                            <p className="text-xs text-gray-500">At Risk</p>
+                            <p className="text-lg font-bold text-amber-700">{stats.atRisk.toLocaleString()}</p>
+                        </div>
+                        <div className="bg-red-50 rounded-lg p-3">
+                            <p className="text-xs text-gray-500">Never Logged In</p>
+                            <p className="text-lg font-bold text-red-700">{stats.neverLoggedIn.toLocaleString()}</p>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            {/* Bottom Section: Attendance & Course Enrollments */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Attendance Chart */}
+            {/* Row 3: Students by Grade & Students by Program/Trade */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                {/* Students by Grade Level */}
                 <div className="bg-white rounded-xl p-6 shadow-sm">
                     <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-lg font-semibold text-gray-800">Attendance</h3>
-                        <select className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500">
-                            <option>This week</option>
-                            <option>Last week</option>
-                            <option>This month</option>
-                        </select>
+                        <h3 className="text-lg font-semibold text-gray-800">Students by Grade Level</h3>
+                        <span className="text-sm text-gray-500">{stats.gradeDistribution.reduce((s, d) => s + d.count, 0).toLocaleString()} total</span>
                     </div>
-                    <div className="flex items-center gap-6 mb-4">
-                        <div className="flex items-center gap-2">
-                            <span className="w-3 h-3 rounded-full bg-cyan-400"></span>
-                            <span className="text-sm text-gray-600">Total Present</span>
+                    {stats.gradeDistribution.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500">
+                            <p>No grade data available yet</p>
                         </div>
-                        <div className="flex items-center gap-2">
-                            <span className="w-3 h-3 rounded-full bg-purple-300"></span>
-                            <span className="text-sm text-gray-600">Total Absent</span>
+                    ) : (
+                        <div className="flex flex-col" style={{ gap: '16px' }}>
+                            {(() => {
+                                const gradeMax = Math.max(...stats.gradeDistribution.map(d => d.count), 1);
+                                return stats.gradeDistribution.map((d) => (
+                                    <div key={d.label} className="flex items-center gap-3">
+                                        <div className="w-20 text-xs text-gray-600 truncate flex-shrink-0" title={d.label}>
+                                            {d.label}
+                                        </div>
+                                        <div className="flex-1 bg-gray-100 rounded-full overflow-hidden" style={{ height: '20px' }}>
+                                            <div
+                                                className="h-full bg-indigo-500 rounded-full transition-all opacity-80 hover:opacity-100"
+                                                style={{ width: `${(d.count / gradeMax) * 100}%` }}
+                                            />
+                                        </div>
+                                        <span className="text-xs font-medium text-gray-700 w-12 text-right flex-shrink-0">
+                                            {d.count.toLocaleString()}
+                                        </span>
+                                    </div>
+                                ));
+                            })()}
                         </div>
+                    )}
+                </div>
+
+                {/* Students by Program/Trade */}
+                <div className="bg-white rounded-xl p-6 shadow-sm">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold text-gray-800">Students by Trade</h3>
+                        <span className="text-sm text-gray-500">Top {stats.programDistribution.length}</span>
                     </div>
-                    <div className="relative">
-                        {/* Y-axis labels */}
-                        <div className="absolute left-0 top-0 h-36 flex flex-col justify-between text-xs text-gray-400">
-                            <span>100</span>
-                            <span>75</span>
-                            <span>50</span>
-                            <span>25</span>
-                            <span>0</span>
+                    {stats.programDistribution.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500">
+                            <p>No program data available yet</p>
                         </div>
-                        <div className="ml-8">
-                            <AttendanceChart data={attendanceData} />
+                    ) : (
+                        <div className="space-y-3">
+                            {(() => {
+                                const progMax = Math.max(...stats.programDistribution.map(d => d.count), 1);
+                                return stats.programDistribution.map((d) => (
+                                    <div key={d.label} className="flex items-center gap-3">
+                                        <div className="w-28 text-xs text-gray-600 truncate flex-shrink-0" title={d.label}>
+                                            {d.label}
+                                        </div>
+                                        <div className="flex-1 h-5 bg-gray-100 rounded-full overflow-hidden">
+                                            <div
+                                                className="h-full bg-teal-500 rounded-full transition-all opacity-80 hover:opacity-100"
+                                                style={{ width: `${(d.count / progMax) * 100}%` }}
+                                            />
+                                        </div>
+                                        <span className="text-xs font-medium text-gray-700 w-12 text-right flex-shrink-0">
+                                            {d.count.toLocaleString()}
+                                        </span>
+                                    </div>
+                                ));
+                            })()}
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Row 4: Teacher Overview */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                {/* Teacher Demographics */}
+                <div className="bg-white rounded-xl p-6 shadow-sm">
+                    <h3 className="text-lg font-semibold text-gray-800 mb-4">Teacher Overview</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        {/* Gender */}
+                        <div>
+                            <h4 className="text-sm font-medium text-gray-600 mb-3">Gender</h4>
+                            <div className="flex flex-col items-center gap-3">
+                                <GenderDonut
+                                    male={stats.maleTeachers}
+                                    female={stats.femaleTeachers}
+                                />
+                                <div className="flex items-center gap-3 flex-wrap justify-center">
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+                                        <span className="text-xs text-gray-600">Male: {stats.maleTeachers.toLocaleString()}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="w-2.5 h-2.5 rounded-full bg-pink-500"></span>
+                                        <span className="text-xs text-gray-600">Female: {stats.femaleTeachers.toLocaleString()}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Summary stats */}
+                        <div>
+                            <h4 className="text-sm font-medium text-gray-600 mb-3">Summary</h4>
+                            <div className="space-y-3">
+                                <div className="bg-amber-50 rounded-lg p-3">
+                                    <p className="text-xs text-gray-500">Total Teachers</p>
+                                    <p className="text-lg font-bold text-amber-700">{stats.totalTeachers.toLocaleString()}</p>
+                                </div>
+                                <div className="bg-blue-50 rounded-lg p-3">
+                                    <p className="text-xs text-gray-500">Positions</p>
+                                    <p className="text-lg font-bold text-blue-700">{stats.positionDistribution.length}</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Course Enrollments Chart */}
+                {/* Teacher Position Distribution */}
                 <div className="bg-white rounded-xl p-6 shadow-sm">
                     <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-lg font-semibold text-gray-800">Course Activity</h3>
-                        <select className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-cyan-500">
-                            <option>This month</option>
-                            <option>Last month</option>
-                            <option>Last 3 months</option>
-                        </select>
+                        <h3 className="text-lg font-semibold text-gray-800">Teachers by Position</h3>
+                        <span className="text-sm text-gray-500">{stats.positionDistribution.reduce((s, d) => s + d.count, 0).toLocaleString()} total</span>
                     </div>
-                    <div className="flex items-center gap-6 mb-4">
-                        <div className="flex items-center gap-2">
-                            <span className="w-3 h-3 rounded-full bg-cyan-400"></span>
-                            <span className="text-sm text-gray-600">Enrollments</span>
+                    {stats.positionDistribution.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500">
+                            <p>No teacher data available yet</p>
                         </div>
-                        <div className="flex items-center gap-2">
-                            <span className="w-3 h-3 rounded-full bg-purple-400"></span>
-                            <span className="text-sm text-gray-600">Completions</span>
+                    ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                            {(() => {
+                                const posMax = Math.max(...stats.positionDistribution.map(d => d.count), 1);
+                                return stats.positionDistribution.map((d) => (
+                                    <div key={d.label} className="flex items-center gap-3">
+                                        <div className="w-28 text-xs text-gray-600 truncate flex-shrink-0" title={d.label}>
+                                            {d.label}
+                                        </div>
+                                        <div className="flex-1 h-6 bg-gray-100 rounded-full overflow-hidden">
+                                            <div
+                                                className="h-full bg-amber-500 rounded-full transition-all opacity-80 hover:opacity-100"
+                                                style={{ width: `${(d.count / posMax) * 100}%` }}
+                                            />
+                                        </div>
+                                        <span className="text-xs font-medium text-gray-700 w-12 text-right flex-shrink-0">
+                                            {d.count.toLocaleString()}
+                                        </span>
+                                    </div>
+                                ));
+                            })()}
                         </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Row 5: Platform Traffic & Student Status + Age */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Platform Traffic */}
+                <div className="bg-white rounded-xl p-6 shadow-sm">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold text-gray-800">Platform Traffic</h3>
+                        <span className="text-sm text-gray-500">Last 7 days</span>
                     </div>
-                    <div className="relative">
-                        {/* Y-axis labels */}
-                        <div className="absolute left-0 top-0 h-40 flex flex-col justify-between text-xs text-gray-400">
-                            <span>600</span>
-                            <span>450</span>
-                            <span>300</span>
-                            <span>150</span>
-                            <span>0</span>
+                    {trafficLoading ? (
+                        <div className="flex items-end justify-between h-48 gap-2 px-2">
+                            {[...Array(7)].map((_, i) => (
+                                <div key={i} className="flex-1 bg-gray-100 rounded-t animate-pulse" style={{ height: `${30 + Math.random() * 50}%` }} />
+                            ))}
                         </div>
-                        <div className="ml-10">
-                            <EnrollmentChart data={enrollmentData} />
+                    ) : traffic.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500">
+                            <p>No traffic data available</p>
+                        </div>
+                    ) : (
+                        <>
+                            <div className="flex items-end justify-between h-48 gap-2 px-2">
+                                {traffic.map((point) => (
+                                    <div key={point.period_label} className="flex flex-col items-center gap-1 flex-1">
+                                        <span className="text-xs font-medium text-gray-600">{point.unique_users}</span>
+                                        <div className="w-full flex justify-center" style={{ height: '10rem' }}>
+                                            <div className="flex items-end h-full w-full max-w-[2.5rem]">
+                                                <div
+                                                    className="w-full bg-blue-500 rounded-t opacity-80 hover:opacity-100 transition-opacity"
+                                                    style={{ height: `${(point.unique_users / trafficMax) * 100}%`, minHeight: point.unique_users > 0 ? '4px' : '0' }}
+                                                />
+                                            </div>
+                                        </div>
+                                        <span className="text-xs text-gray-500">{point.period_label}</span>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="flex items-center gap-4 mt-3 pt-3 border-t border-gray-100">
+                                <div className="flex items-center gap-1.5">
+                                    <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+                                    <span className="text-xs text-gray-500">Unique Users</span>
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </div>
+
+                {/* Student Status & Age Distribution */}
+                <div className="bg-white rounded-xl p-6 shadow-sm">
+                    <h3 className="text-lg font-semibold text-gray-800 mb-4">Student Status & Age</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        {/* Status Donut */}
+                        <div>
+                            <h4 className="text-sm font-medium text-gray-600 mb-3">SDMS Status</h4>
+                            <div className="flex flex-col items-center gap-3">
+                                <StatusDonut data={stats.statusDistribution} />
+                                <div className="flex items-center gap-2 flex-wrap justify-center">
+                                    {stats.statusDistribution.map((d) => (
+                                        <div key={d.label} className="flex items-center gap-1">
+                                            <span
+                                                className="w-2 h-2 rounded-full flex-shrink-0"
+                                                style={{ backgroundColor: statusColors[d.label] || '#6b7280' }}
+                                            ></span>
+                                            <span className="text-xs text-gray-500">{d.label}: {d.count.toLocaleString()}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Age Distribution */}
+                        <div>
+                            <h4 className="text-sm font-medium text-gray-600 mb-3">Age Distribution</h4>
+                            {stats.ageDistribution.length === 0 ? (
+                                <div className="text-center py-4 text-gray-500 text-sm">No age data yet</div>
+                            ) : (
+                                <div className="flex flex-col" style={{ gap: '12px' }}>
+                                    {(() => {
+                                        const ageMax = Math.max(...stats.ageDistribution.map(d => d.count), 1);
+                                        return stats.ageDistribution.map((d) => (
+                                            <div key={d.label} className="flex items-center gap-2">
+                                                <div className="w-14 text-xs text-gray-600 flex-shrink-0">{d.label}</div>
+                                                <div className="flex-1 bg-gray-100 rounded-full overflow-hidden" style={{ height: '18px' }}>
+                                                    <div
+                                                        className="h-full bg-violet-500 rounded-full opacity-80 hover:opacity-100 transition-all"
+                                                        style={{ width: `${(d.count / ageMax) * 100}%` }}
+                                                    />
+                                                </div>
+                                                <span className="text-xs font-medium text-gray-700 w-10 text-right flex-shrink-0">
+                                                    {d.count.toLocaleString()}
+                                                </span>
+                                            </div>
+                                        ));
+                                    })()}
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

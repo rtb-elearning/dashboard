@@ -37,9 +37,12 @@ interface SchoolCardData {
     total_active: number;
     at_risk_count: number;
     avg_quiz_score: number | null;
+    avg_actions_per_student: number;
     province: string;
     district: string;
 }
+
+type SortMode = 'name' | 'most_active' | 'most_enrolled';
 
 function ajaxCall(methodname: string, args: Record<string, any>): Promise<any> {
     return new Promise((resolve, reject) => {
@@ -108,6 +111,7 @@ export default function SchoolDirectory() {
     const [searchQuery, setSearchQuery] = useState('');
     const [provinceFilter, setProvinceFilter] = useState('');
     const [districtFilter, setDistrictFilter] = useState('');
+    const [sortMode, setSortMode] = useState<SortMode>('name');
     const [provinces, setProvinces] = useState<string[]>([]);
     const [districts, setDistricts] = useState<string[]>([]);
 
@@ -179,6 +183,15 @@ export default function SchoolDirectory() {
         if (provinceFilter && school.province !== provinceFilter) return false;
         if (districtFilter && school.district !== districtFilter) return false;
         return true;
+    }).sort((a, b) => {
+        switch (sortMode) {
+            case 'most_active':
+                return (b.avg_actions_per_student || 0) - (a.avg_actions_per_student || 0);
+            case 'most_enrolled':
+                return b.total_enrolled - a.total_enrolled;
+            default: // 'name'
+                return a.school_name.localeCompare(b.school_name);
+        }
     });
 
     // Compute aggregate KPIs.
@@ -264,6 +277,17 @@ export default function SchoolDirectory() {
                         {filteredDistricts.map(d => (
                             <option key={d} value={d}>District {d}</option>
                         ))}
+                    </select>
+
+                    {/* Sort toggle */}
+                    <select
+                        className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value={sortMode}
+                        onChange={(e) => setSortMode((e.target as HTMLSelectElement).value as SortMode)}
+                    >
+                        <option value="name">Sort: A-Z</option>
+                        <option value="most_active">Sort: Most Active</option>
+                        <option value="most_enrolled">Sort: Most Enrolled</option>
                     </select>
                 </div>
             </div>

@@ -23,7 +23,8 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-import { useState, useEffect } from 'preact/hooks';
+import { useState, useEffect, useRef } from 'preact/hooks';
+import type { UnlinkedUser } from '../types';
 
 // @ts-ignore
 declare const require: (deps: string[], callback: (...args: any[]) => void) => void;
@@ -53,6 +54,17 @@ interface SyncLogEntry {
     error_message: string | null;
     triggered_by: string;
     timecreated: number;
+}
+
+interface LookupPreview {
+    sdms_id: string;
+    status: string;
+    academic_year: string;
+    school_name: string;
+    student_name: string;
+    program: string;
+    position: string;
+    user_type: string;
 }
 
 function formatTimestamp(ts: number): string {
@@ -90,11 +102,241 @@ function OperationBadge({ operation }: { operation: string }) {
     );
 }
 
+function LinkUserSection({ onLinked }: { onLinked: () => void }) {
+    const [search, setSearch] = useState('');
+    const [users, setUsers] = useState<UnlinkedUser[]>([]);
+    const [searching, setSearching] = useState(false);
+    const [totalCount, setTotalCount] = useState(0);
+    const [selectedUser, setSelectedUser] = useState<UnlinkedUser | null>(null);
+    const [sdmsCode, setSdmsCode] = useState('');
+    const [userType, setUserType] = useState('student');
+    const [lookupPreview, setLookupPreview] = useState<LookupPreview | null>(null);
+    const [lookingUp, setLookingUp] = useState(false);
+    const [linking, setLinking] = useState(false);
+    const [linkNotification, setLinkNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+    const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    function handleSearchChange(value: string) {
+        setSearch(value);
+        setSelectedUser(null);
+        setLookupPreview(null);
+        setLinkNotification(null);
+
+        if (searchTimer.current) clearTimeout(searchTimer.current);
+        if (value.trim().length < 2) {
+            setUsers([]);
+            setTotalCount(0);
+            return;
+        }
+        searchTimer.current = setTimeout(() => doSearch(value.trim()), 400);
+    }
+
+    async function doSearch(term: string) {
+        setSearching(true);
+        try {
+            const result = await ajaxCall('local_elby_dashboard_search_unlinked_users', {
+                search: term, page: 0, perpage: 20
+            });
+            setUsers(result.users || []);
+            setTotalCount(result.total_count || 0);
+        } catch {
+            setUsers([]);
+        } finally {
+            setSearching(false);
+        }
+    }
+
+    async function handleLookup() {
+        if (!sdmsCode.trim()) return;
+        setLookingUp(true);
+        setLookupPreview(null);
+        setLinkNotification(null);
+        try {
+            const result = await ajaxCall('local_elby_dashboard_lookup_sdms_user', {
+                sdms_code: sdmsCode.trim(), user_type: userType
+            });
+            if (!result.success) {
+                setLinkNotification({ type: 'error', message: result.error || 'Not found in SDMS' });
+                return;
+            }
+            const name = result.student_data?.names || '';
+            setLookupPreview({
+                sdms_id: result.sdms_id,
+                status: result.status || '',
+                academic_year: result.academic_year || '',
+                school_name: result.school?.school_name || '',
+                student_name: name,
+                program: result.student_data?.program || '',
+                position: result.staff_data?.position || '',
+                user_type: userType,
+            });
+        } catch (err: any) {
+            setLinkNotification({ type: 'error', message: err?.message || 'Lookup failed' });
+        } finally {
+            setLookingUp(false);
+        }
+    }
+
+    async function handleLink() {
+        if (!selectedUser || !sdmsCode.trim()) return;
+        setLinking(true);
+        setLinkNotification(null);
+        try {
+            const result = await ajaxCall('local_elby_dashboard_link_user', {
+                userid: selectedUser.userid, sdms_code: sdmsCode.trim(), user_type: userType
+            });
+            if (result.success) {
+                setLinkNotification({ type: 'success', message: `Successfully linked ${selectedUser.fullname} to ${sdmsCode}` });
+                setSelectedUser(null);
+                setSdmsCode('');
+                setLookupPreview(null);
+                // Remove linked user from list.
+                setUsers(prev => prev.filter(u => u.userid !== selectedUser.userid));
+                onLinked();
+            } else {
+                setLinkNotification({ type: 'error', message: result.error || 'Link failed' });
+            }
+        } catch (err: any) {
+            setLinkNotification({ type: 'error', message: err?.message || 'Link failed' });
+        } finally {
+            setLinking(false);
+        }
+    }
+
+    return (
+        <div className="bg-white rounded-xl p-6 shadow-sm">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Link User to SDMS</h3>
+
+            {linkNotification && (
+                <div className={`mb-4 px-4 py-3 rounded-lg text-sm ${
+                    linkNotification.type === 'success'
+                        ? 'bg-green-50 text-green-800 border border-green-200'
+                        : 'bg-red-50 text-red-800 border border-red-200'
+                }`}>
+                    {linkNotification.message}
+                    <button onClick={() => setLinkNotification(null)} className="float-right text-lg leading-none opacity-60 hover:opacity-100">&times;</button>
+                </div>
+            )}
+
+            {/* Search unlinked users */}
+            <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Search Unlinked Users</label>
+                <input
+                    type="text"
+                    value={search}
+                    onInput={(e) => handleSearchChange((e.target as HTMLInputElement).value)}
+                    placeholder="Search by name, username, or email..."
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+                {searching && <p className="text-xs text-gray-400 mt-1">Searching...</p>}
+                {!searching && totalCount > 0 && (
+                    <p className="text-xs text-gray-500 mt-1">{totalCount} unlinked user{totalCount !== 1 ? 's' : ''} found</p>
+                )}
+            </div>
+
+            {/* Results list */}
+            {users.length > 0 && !selectedUser && (
+                <div className="mb-4 max-h-48 overflow-y-auto border border-gray-200 rounded-lg">
+                    {users.map(user => (
+                        <button
+                            key={user.userid}
+                            onClick={() => { setSelectedUser(user); setSdmsCode(''); setLookupPreview(null); setLinkNotification(null); }}
+                            className="w-full text-left px-4 py-2 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-colors"
+                        >
+                            <p className="text-sm font-medium text-gray-800">{user.fullname}</p>
+                            <p className="text-xs text-gray-500">{user.username} &middot; {user.email}</p>
+                        </button>
+                    ))}
+                </div>
+            )}
+
+            {/* Selected user - link form */}
+            {selectedUser && (
+                <div className="border border-blue-200 bg-blue-50 rounded-lg p-4 mb-4">
+                    <div className="flex items-center justify-between mb-3">
+                        <div>
+                            <p className="text-sm font-semibold text-gray-800">{selectedUser.fullname}</p>
+                            <p className="text-xs text-gray-500">{selectedUser.username} &middot; {selectedUser.email}</p>
+                        </div>
+                        <button
+                            onClick={() => { setSelectedUser(null); setLookupPreview(null); }}
+                            className="text-gray-400 hover:text-gray-600 text-lg"
+                        >&times;</button>
+                    </div>
+
+                    <div className="flex gap-2 mb-3">
+                        <input
+                            type="text"
+                            value={sdmsCode}
+                            onInput={(e) => setSdmsCode((e.target as HTMLInputElement).value)}
+                            placeholder="Enter SDMS code..."
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        />
+                        <select
+                            value={userType}
+                            onChange={(e) => setUserType((e.target as HTMLSelectElement).value)}
+                            className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        >
+                            <option value="student">Student</option>
+                            <option value="staff">Staff</option>
+                        </select>
+                        <button
+                            onClick={handleLookup}
+                            disabled={lookingUp || !sdmsCode.trim()}
+                            className="px-4 py-2 bg-gray-600 text-white rounded-lg text-sm hover:bg-gray-700 disabled:opacity-50"
+                        >
+                            {lookingUp ? '...' : 'Lookup'}
+                        </button>
+                    </div>
+
+                    {/* Lookup preview */}
+                    {lookupPreview && (
+                        <div className="bg-white rounded-lg p-3 mb-3 border border-gray-200">
+                            <p className="text-sm font-medium text-gray-800 mb-1">SDMS Preview</p>
+                            <div className="grid grid-cols-2 gap-1 text-xs">
+                                <span className="text-gray-500">SDMS ID:</span>
+                                <span className="text-gray-800">{lookupPreview.sdms_id}</span>
+                                {lookupPreview.student_name && <>
+                                    <span className="text-gray-500">Name:</span>
+                                    <span className="text-gray-800">{lookupPreview.student_name}</span>
+                                </>}
+                                <span className="text-gray-500">School:</span>
+                                <span className="text-gray-800">{lookupPreview.school_name || '-'}</span>
+                                <span className="text-gray-500">Status:</span>
+                                <span className="text-gray-800">{lookupPreview.status || '-'}</span>
+                                {lookupPreview.program && <>
+                                    <span className="text-gray-500">Program:</span>
+                                    <span className="text-gray-800">{lookupPreview.program}</span>
+                                </>}
+                                {lookupPreview.position && <>
+                                    <span className="text-gray-500">Position:</span>
+                                    <span className="text-gray-800">{lookupPreview.position}</span>
+                                </>}
+                            </div>
+                        </div>
+                    )}
+
+                    {lookupPreview && (
+                        <button
+                            onClick={handleLink}
+                            disabled={linking}
+                            className="w-full px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 disabled:opacity-50"
+                        >
+                            {linking ? 'Linking...' : `Link ${selectedUser.fullname} to ${sdmsCode}`}
+                        </button>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+}
+
 export default function AdminPanel() {
     const [stats, setStats] = useState<AdminStats | null>(null);
     const [logs, setLogs] = useState<SyncLogEntry[]>([]);
     const [loading, setLoading] = useState(true);
     const [syncing, setSyncing] = useState<string | null>(null);
+    const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
     useEffect(() => {
         loadAdminData();
@@ -121,17 +363,26 @@ export default function AdminPanel() {
     }
 
     async function handleManualSync(type: string) {
+        setSyncing(type);
+        setNotification(null);
         try {
-            setSyncing(type);
-            if (type === 'sdms_cache') {
-                // Trigger a few user refreshes as a demo.
-                // In production, this would trigger the scheduled task.
-                alert('SDMS cache refresh task triggered. Check Site Admin > Scheduled Tasks to run it manually.');
-            } else if (type === 'user_metrics') {
-                alert('User metrics computation task triggered. Check Site Admin > Scheduled Tasks to run it manually.');
-            } else if (type === 'school_metrics') {
-                alert('School metrics aggregation task triggered. Check Site Admin > Scheduled Tasks to run it manually.');
+            const taskMap: Record<string, string> = {
+                user_metrics: 'compute_user_metrics',
+                school_metrics: 'aggregate_school_metrics',
+                sdms_cache: 'refresh_sdms_cache',
+            };
+            const taskName = taskMap[type];
+            if (!taskName) return;
+
+            const result = await ajaxCall('local_elby_dashboard_trigger_task', { task_name: taskName });
+            if (result.success) {
+                setNotification({ type: 'success', message: result.message });
+                loadAdminData();
+            } else {
+                setNotification({ type: 'error', message: result.message });
             }
+        } catch (err: any) {
+            setNotification({ type: 'error', message: err?.message || 'Failed to run task' });
         } finally {
             setSyncing(null);
         }
@@ -191,6 +442,22 @@ export default function AdminPanel() {
                     />
                 </div>
             )}
+
+            {notification && (
+                <div className={`mb-4 px-4 py-3 rounded-lg text-sm ${
+                    notification.type === 'success'
+                        ? 'bg-green-50 text-green-800 border border-green-200'
+                        : 'bg-red-50 text-red-800 border border-red-200'
+                }`}>
+                    {notification.message}
+                    <button onClick={() => setNotification(null)} className="float-right text-lg leading-none opacity-60 hover:opacity-100">&times;</button>
+                </div>
+            )}
+
+            {/* Link User to SDMS */}
+            <div className="mb-6">
+                <LinkUserSection onLinked={loadAdminData} />
+            </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Manual Sync Triggers */}
