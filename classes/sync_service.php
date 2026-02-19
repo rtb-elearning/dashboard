@@ -411,18 +411,27 @@ class sync_service {
         }
 
         // Replace staff subjects: delete old, insert new.
+        // Deduplicate by subject_code since the unique key is (teacherid, subject_code)
+        // and SDMS can return the same subject under multiple combinations.
         $DB->delete_records('elby_staff_subjects', ['teacherid' => $teacherid]);
 
         if (!empty($data->specialities) && is_array($data->specialities)) {
             $now = time();
+            $seen = [];
             foreach ($data->specialities as $spec) {
+                $subjectcode = $spec->subjectCode ?? '';
+                if (isset($seen[$subjectcode])) {
+                    continue;
+                }
+                $seen[$subjectcode] = true;
+
                 $subject = new \stdClass();
                 $subject->teacherid = $teacherid;
                 $subject->level_id = $spec->levelId ?? '';
                 $subject->level_name = $spec->levelName ?? $spec->level ?? '';
                 $subject->combination_code = $spec->combinationCode ?? '';
                 $subject->combination_name = $spec->combinationName ?? $spec->combination ?? '';
-                $subject->subject_code = $spec->subjectCode ?? '';
+                $subject->subject_code = $subjectcode;
                 $subject->subject_name = $spec->subjectName ?? $spec->subject ?? '';
                 $subject->grade_code = $spec->gradeCode ?? null;
                 $subject->grade_name = $spec->gradeName ?? null;
