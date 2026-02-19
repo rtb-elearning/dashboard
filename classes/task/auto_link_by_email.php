@@ -88,7 +88,11 @@ class auto_link_by_email extends \core\task\scheduled_task {
                 }
             } catch (\Exception $e) {
                 $failed++;
-                mtrace("  Failed to link user {$user->id} ({$user->email}): " . $e->getMessage());
+                $detail = $e->getMessage();
+                if ($e instanceof \moodle_exception && !empty($e->debuginfo)) {
+                    $detail .= ' [debug: ' . $e->debuginfo . ']';
+                }
+                mtrace("  Failed to link user {$user->id} ({$user->email}): " . $detail);
             }
         }
         mtrace("Auto-link by email: {$linked} linked, {$failed} failed, {$skipped} skipped out of " . count($users) . " unlinked users.");
