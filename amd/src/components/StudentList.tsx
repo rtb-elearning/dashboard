@@ -24,7 +24,7 @@
  */
 
 import { useState, useEffect } from 'preact/hooks';
-import type { StudentMetric, StudentListResponse, UserData } from '../types';
+import type { StudentMetric, StudentListResponse, StudentListSummary, ProgramOption, UserData } from '../types';
 
 // @ts-ignore
 declare const require: (deps: string[], callback: (...args: any[]) => void) => void;
@@ -104,6 +104,9 @@ export default function StudentList({ initialSchoolCode = '', initialCourseId = 
     const [searchInput, setSearchInput] = useState('');
     const [schoolCode, setSchoolCode] = useState(initialSchoolCode);
     const [engagementLevel, setEngagementLevel] = useState('');
+    const [programCode, setProgramCode] = useState('');
+    const [summary, setSummary] = useState<StudentListSummary | null>(null);
+    const [programs, setPrograms] = useState<ProgramOption[]>([]);
 
     // School edit state (admin only).
     const [schoolsList, setSchoolsList] = useState<SchoolOption[]>([]);
@@ -121,7 +124,7 @@ export default function StudentList({ initialSchoolCode = '', initialCourseId = 
 
     useEffect(() => {
         loadStudents();
-    }, [page, sort, order, search, schoolCode, engagementLevel]);
+    }, [page, sort, order, search, schoolCode, engagementLevel, programCode]);
 
     async function loadStudents() {
         try {
@@ -136,9 +139,16 @@ export default function StudentList({ initialSchoolCode = '', initialCourseId = 
                 search,
                 engagement_level: engagementLevel,
                 user_type: userType,
+                program_code: programCode,
             });
             setStudents(result.students);
             setTotalCount(result.total_count);
+            if (result.summary) {
+                setSummary(result.summary);
+            }
+            if (result.programs && result.programs.length > 0) {
+                setPrograms(result.programs);
+            }
         } catch (err) {
             console.error('Failed to load students:', err);
         } finally {
@@ -188,11 +198,12 @@ export default function StudentList({ initialSchoolCode = '', initialCourseId = 
 
     function handleExportCsv() {
         const roleLabel = isTeacher ? 'Position' : 'Program';
-        const headers = ['Name', 'SDMS ID', roleLabel, 'Gender', ...(isTeacher ? [] : ['Age']), 'School Name', 'School Code', 'Last Active', 'Active Days', 'Total Actions', 'Quiz Avg', 'Progress', 'Status'];
+        const headers = ['Name', 'SDMS ID', roleLabel, ...(isTeacher ? [] : ['Level']), 'Gender', ...(isTeacher ? [] : ['Age']), 'School Name', 'School Code', 'Last Active', 'Active Days', 'Total Actions', 'Quiz Avg', 'Progress', ...(isTeacher ? [] : ['Enrolled Courses']), 'Status'];
         const rows = students.map(s => [
             s.fullname,
             s.sdms_id,
             isTeacher ? (s.position || '') : (s.program || ''),
+            ...(isTeacher ? [] : [s.class_grade || '']),
             s.gender || '',
             ...(isTeacher ? [] : [s.age !== null && s.age !== undefined ? String(s.age) : '']),
             s.school_name,
@@ -202,6 +213,7 @@ export default function StudentList({ initialSchoolCode = '', initialCourseId = 
             String(s.total_actions),
             s.quizzes_avg_score !== null && s.quizzes_avg_score !== undefined ? String(s.quizzes_avg_score) : '',
             s.course_progress !== null && s.course_progress !== undefined ? String(s.course_progress) : '',
+            ...(isTeacher ? [] : [String(s.enrolled_courses)]),
             s.status,
         ]);
         const csv = [headers, ...rows].map(r => r.map(c => `"${c}"`).join(',')).join('\n');
@@ -281,6 +293,23 @@ export default function StudentList({ initialSchoolCode = '', initialCourseId = 
                         <option value="at_risk">At Risk</option>
                     </select>
 
+                    {/* Program/Trade filter */}
+                    {!isTeacher && programs.length > 0 && (
+                        <select
+                            className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            value={programCode}
+                            onChange={(e) => {
+                                setProgramCode((e.target as HTMLSelectElement).value);
+                                setPage(0);
+                            }}
+                        >
+                            <option value="">All Programs</option>
+                            {programs.map(p => (
+                                <option key={p.code} value={p.code}>{p.name}</option>
+                            ))}
+                        </select>
+                    )}
+
                     {/* Export */}
                     <button
                         onClick={handleExportCsv}
@@ -291,6 +320,31 @@ export default function StudentList({ initialSchoolCode = '', initialCourseId = 
                 </div>
             </div>
 
+            {/* Summary Cards */}
+            {summary && (
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                    <div className="bg-white rounded-xl p-4 shadow-sm">
+                        <div className="text-2xl font-bold text-gray-800">{summary.total.toLocaleString()}</div>
+                        <div className="text-sm text-gray-500">{isTeacher ? 'Total Teachers' : 'Total Students'}</div>
+                    </div>
+                    <div className="bg-white rounded-xl p-4 shadow-sm">
+                        <div className="text-2xl font-bold text-green-600">{summary.active_count.toLocaleString()}</div>
+                        <div className="text-sm text-gray-500">Active</div>
+                    </div>
+                    <div className="bg-white rounded-xl p-4 shadow-sm">
+                        <div className="text-2xl font-bold text-red-600">{summary.at_risk_count.toLocaleString()}</div>
+                        <div className="text-sm text-gray-500">At Risk</div>
+                    </div>
+                    <div className="bg-white rounded-xl p-4 shadow-sm">
+                        <div className="text-2xl font-bold text-blue-600">
+                            {summary.avg_quiz_score !== null && summary.avg_quiz_score !== undefined
+                                ? `${summary.avg_quiz_score}%` : '-'}
+                        </div>
+                        <div className="text-sm text-gray-500">Avg Quiz Score</div>
+                    </div>
+                </div>
+            )}
+
             {/* Table */}
             <div className="bg-white rounded-xl shadow-sm overflow-hidden">
                 <div className="overflow-x-auto p-4">
@@ -300,6 +354,7 @@ export default function StudentList({ initialSchoolCode = '', initialCourseId = 
                                 {sortableHeader('Name', 'lastname')}
                                 <th className="pb-3 font-medium">SDMS ID</th>
                                 <th className="pb-3 font-medium">{isTeacher ? 'Position' : 'Program'}</th>
+                                {!isTeacher && <th className="pb-3 font-medium">Level</th>}
                                 <th className="pb-3 font-medium">Gender</th>
                                 {!isTeacher && <th className="pb-3 font-medium">Age</th>}
                                 <th className="pb-3 font-medium">School Name</th>
@@ -309,6 +364,7 @@ export default function StudentList({ initialSchoolCode = '', initialCourseId = 
                                 {sortableHeader('Actions', 'total_actions')}
                                 {sortableHeader('Quiz Avg', 'quizzes_avg_score')}
                                 {sortableHeader('Progress', 'course_progress')}
+                                {!isTeacher && sortableHeader('Enrolled', 'enrolled_courses')}
                                 <th className="pb-3 font-medium">Status</th>
                             </tr>
                         </thead>
@@ -316,7 +372,7 @@ export default function StudentList({ initialSchoolCode = '', initialCourseId = 
                             {loading ? (
                                 Array.from({ length: 5 }).map((_, i) => (
                                     <tr key={i} className="border-b border-gray-50">
-                                        {Array.from({ length: isTeacher ? 12 : 13 }).map((_, j) => (
+                                        {Array.from({ length: isTeacher ? 12 : 15 }).map((_, j) => (
                                             <td key={j} className="py-3 px-2">
                                                 <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
                                             </td>
@@ -325,7 +381,7 @@ export default function StudentList({ initialSchoolCode = '', initialCourseId = 
                                 ))
                             ) : students.length === 0 ? (
                                 <tr>
-                                    <td colSpan={isTeacher ? 12 : 13} className="py-12 text-center text-gray-500">
+                                    <td colSpan={isTeacher ? 12 : 15} className="py-12 text-center text-gray-500">
                                         {isTeacher ? 'No teachers found' : 'No students found'}
                                     </td>
                                 </tr>
@@ -335,6 +391,7 @@ export default function StudentList({ initialSchoolCode = '', initialCourseId = 
                                         <td className="py-3 px-2 font-medium text-gray-800">{student.fullname}</td>
                                         <td className="py-3 px-2 text-gray-600">{student.sdms_id}</td>
                                         <td className="py-3 px-2 text-gray-600">{isTeacher ? (student.position || '-') : (student.program || '-')}</td>
+                                        {!isTeacher && <td className="py-3 px-2 text-gray-600">{student.class_grade || '-'}</td>}
                                         <td className="py-3 px-2 text-gray-600">{student.gender || '-'}</td>
                                         {!isTeacher && <td className="py-3 px-2 text-gray-600">{student.age !== null && student.age !== undefined ? student.age : '-'}</td>}
                                         <td className="py-3 px-2 text-gray-600">{student.school_name || '-'}</td>
@@ -404,6 +461,9 @@ export default function StudentList({ initialSchoolCode = '', initialCourseId = 
                                                 </div>
                                             ) : '-'}
                                         </td>
+                                        {!isTeacher && (
+                                            <td className="py-3 px-2 text-gray-800">{student.enrolled_courses}</td>
+                                        )}
                                         <td className="py-3 px-2">
                                             <StatusBadge status={student.status} />
                                         </td>

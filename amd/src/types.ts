@@ -127,9 +127,11 @@ export interface StudentMetric {
     fullname: string;
     sdms_id: string;
     program: string;
+    program_code: string;
     position: string;
     gender: string;
     age: number | null;
+    class_grade: string;
     school_name: string;
     school_code: string;
     last_access: number;
@@ -137,7 +139,20 @@ export interface StudentMetric {
     total_actions: number;
     quizzes_avg_score: number | null;
     course_progress: number | null;
+    enrolled_courses: number;
     status: string;
+}
+
+export interface StudentListSummary {
+    total: number;
+    active_count: number;
+    at_risk_count: number;
+    avg_quiz_score: number | null;
+}
+
+export interface ProgramOption {
+    code: string;
+    name: string;
 }
 
 export interface StudentListResponse {
@@ -145,6 +160,8 @@ export interface StudentListResponse {
     total_count: number;
     page: number;
     perpage: number;
+    summary: StudentListSummary;
+    programs: ProgramOption[];
 }
 
 export interface EngagementDistribution {

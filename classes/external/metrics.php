@@ -209,6 +209,7 @@ class metrics extends external_api {
                 VALUE_DEFAULT, ''),
             'user_type' => new external_value(PARAM_TEXT, 'Filter: student, teacher, or empty for students only',
                 VALUE_DEFAULT, ''),
+            'program_code' => new external_value(PARAM_TEXT, 'Filter by program/trade code', VALUE_DEFAULT, ''),
         ]);
     }
 
@@ -224,11 +225,13 @@ class metrics extends external_api {
      * @param string $search Search query.
      * @param string $engagementlevel Engagement level filter.
      * @param string $usertype User type filter: student, teacher, or empty.
+     * @param string $programcode Program code filter.
      * @return array Paginated student list.
      */
     public static function get_student_list(string $schoolcode = '', int $courseid = 0,
             string $sort = 'lastname', string $order = 'ASC', int $page = 0, int $perpage = 25,
-            string $search = '', string $engagementlevel = '', string $usertype = ''): array {
+            string $search = '', string $engagementlevel = '', string $usertype = '',
+            string $programcode = ''): array {
         global $DB;
 
         $params = self::validate_parameters(
@@ -243,6 +246,7 @@ class metrics extends external_api {
                 'search' => $search,
                 'engagement_level' => $engagementlevel,
                 'user_type' => $usertype,
+                'program_code' => $programcode,
             ]
         );
 
@@ -252,7 +256,7 @@ class metrics extends external_api {
 
         // Sanitize sort parameters.
         $allowedsorts = ['lastname', 'firstname', 'active_days', 'total_actions',
-            'quizzes_avg_score', 'course_progress', 'last_access'];
+            'quizzes_avg_score', 'course_progress', 'last_access', 'enrolled_courses'];
         $sort = in_array($params['sort'], $allowedsorts) ? $params['sort'] : 'lastname';
         $order = strtoupper($params['order']) === 'DESC' ? 'DESC' : 'ASC';
         $page = max(0, $params['page']);
@@ -311,16 +315,25 @@ class metrics extends external_api {
 
         $progresscol = $hascoursefilter ? "progress_agg.course_progress" : "NULL AS course_progress";
 
+        // Subquery 4: Enrolled courses count.
+        $enrollsub = "(SELECT ue_ec.userid, COUNT(DISTINCT e_ec.courseid) AS enrolled_courses
+                       FROM {user_enrolments} ue_ec
+                       JOIN {enrol} e_ec ON e_ec.id = ue_ec.enrolid
+                       GROUP BY ue_ec.userid)";
+
         $select = "SELECT u.id AS userid, u.firstname, u.lastname,
                           su.sdms_id,
                           " . ($isteacher ? "et.position" : "st.program") . ",
                           " . ($isteacher ? "et.gender" : "st.gender") . ",
                           " . ($isteacher ? "NULL AS date_of_birth" : "st.date_of_birth") . ",
+                          " . ($isteacher ? "NULL AS class_grade" : "st.class_grade") . ",
+                          " . ($isteacher ? "NULL AS program_code" : "st.program_code") . ",
                           u.lastaccess AS last_access,
                           COALESCE(log_agg.active_days, 0) AS active_days,
                           COALESCE(log_agg.total_actions, 0) AS total_actions,
                           quiz_agg.quizzes_avg_score,
                           {$progresscol},
+                          COALESCE(enrol_agg.enrolled_courses, 0) AS enrolled_courses,
                           sch2.school_name,
                           sch2.school_code,
                           CASE
@@ -336,7 +349,8 @@ class metrics extends external_api {
                       : " LEFT JOIN {elby_students} st ON st.sdms_userid = su.id")
                   . " LEFT JOIN {elby_schools} sch2 ON sch2.id = su.schoolid
                   LEFT JOIN {$logsub} log_agg ON log_agg.userid = u.id
-                  LEFT JOIN {$quizsub} quiz_agg ON quiz_agg.userid = u.id"
+                  LEFT JOIN {$quizsub} quiz_agg ON quiz_agg.userid = u.id
+                  LEFT JOIN {$enrollsub} enrol_agg ON enrol_agg.userid = u.id"
                   . $progresssub;
 
         $where = " WHERE u.deleted = 0";
@@ -372,6 +386,12 @@ class metrics extends external_api {
             $sqlparams['search3'] = $searchterm;
         }
 
+        // Program/trade filter (students only).
+        if (!empty($params['program_code']) && !$isteacher) {
+            $where .= " AND st.program_code = :programcode";
+            $sqlparams['programcode'] = $params['program_code'];
+        }
+
         // Engagement level filter.
         if (!empty($params['engagement_level'])) {
             if ($params['engagement_level'] === 'at_risk') {
@@ -395,6 +415,7 @@ class metrics extends external_api {
             'quizzes_avg_score' => 'quiz_agg.quizzes_avg_score',
             'course_progress' => ($hascoursefilter ? 'progress_agg.course_progress' : 'u.lastname'),
             'last_access' => 'u.lastaccess',
+            'enrolled_courses' => 'enrolled_courses',
         ];
         $sortfield = $sortmap[$sort] ?? 'u.lastname';
 
@@ -409,10 +430,12 @@ class metrics extends external_api {
         $progressgroupby = $hascoursefilter ? ', progress_agg.course_progress' : '';
         $gendercol = $isteacher ? 'et.gender' : 'st.gender';
         $dobcol = $isteacher ? '' : ', st.date_of_birth';
+        $classgradecol = $isteacher ? '' : ', st.class_grade, st.program_code';
         $groupby = " GROUP BY u.id, u.firstname, u.lastname, su.sdms_id, {$programorposition},
-                     {$gendercol}{$dobcol},
+                     {$gendercol}{$dobcol}{$classgradecol},
                      u.lastaccess, log_agg.active_days, log_agg.total_actions,
                      quiz_agg.quizzes_avg_score{$progressgroupby},
+                     enrol_agg.enrolled_courses,
                      sch2.school_name, sch2.school_code";
         $sql = $select . $from . $where . $groupby . $orderby;
         $records = $DB->get_records_sql($sql, $sqlparams, $page * $perpage, $perpage);
@@ -433,9 +456,11 @@ class metrics extends external_api {
                 'fullname' => $rec->firstname . ' ' . $rec->lastname,
                 'sdms_id' => $rec->sdms_id ?? '',
                 'program' => $isteacher ? '' : ($rec->program ?? ''),
+                'program_code' => $isteacher ? '' : ($rec->program_code ?? ''),
                 'position' => $isteacher ? ($rec->position ?? '') : '',
                 'gender' => $rec->gender ?? '',
                 'age' => $age,
+                'class_grade' => $isteacher ? '' : ($rec->class_grade ?? ''),
                 'school_name' => $rec->school_name ?? '',
                 'school_code' => $rec->school_code ?? '',
                 'last_access' => (int) ($rec->last_access ?? 0),
@@ -443,8 +468,82 @@ class metrics extends external_api {
                 'total_actions' => (int) $rec->total_actions,
                 'quizzes_avg_score' => $rec->quizzes_avg_score !== null ? (float) $rec->quizzes_avg_score : null,
                 'course_progress' => $rec->course_progress !== null ? (float) $rec->course_progress : null,
+                'enrolled_courses' => (int) $rec->enrolled_courses,
                 'status' => $rec->status,
             ];
+        }
+
+        // Compute summary stats for the full filtered set.
+        $summaryparams = [
+            'sum_ut' => $suusertype,
+            'sum_active' => time() - (7 * 86400),
+        ];
+
+        $summarybase = " FROM {user} u
+            JOIN {elby_sdms_users} su ON su.userid = u.id AND su.user_type = :sum_ut"
+            . (!$isteacher ? " LEFT JOIN {elby_students} st2 ON st2.sdms_userid = su.id" : "")
+            . " LEFT JOIN {elby_schools} sch ON sch.id = su.schoolid
+            LEFT JOIN (
+                SELECT qg2.userid, AVG(qg2.grade / q2.grade * 100) AS quiz_avg
+                FROM {quiz_grades} qg2
+                JOIN {quiz} q2 ON q2.id = qg2.quiz AND q2.grade > 0
+                GROUP BY qg2.userid
+            ) sum_quiz ON sum_quiz.userid = u.id";
+
+        $summarywhere = " WHERE u.deleted = 0";
+
+        if (!empty($params['school_code'])) {
+            $summarywhere .= " AND sch.school_code = :sum_sc";
+            $summaryparams['sum_sc'] = $params['school_code'];
+        }
+        if (!empty($params['search'])) {
+            $searchterm2 = '%' . $DB->sql_like_escape($params['search']) . '%';
+            $summarywhere .= " AND (" . $DB->sql_like('u.firstname', ':sum_s1', false)
+                . " OR " . $DB->sql_like('u.lastname', ':sum_s2', false)
+                . " OR " . $DB->sql_like('su.sdms_id', ':sum_s3', false) . ")";
+            $summaryparams['sum_s1'] = $searchterm2;
+            $summaryparams['sum_s2'] = $searchterm2;
+            $summaryparams['sum_s3'] = $searchterm2;
+        }
+        if (!empty($params['program_code']) && !$isteacher) {
+            $summarywhere .= " AND st2.program_code = :sum_pc";
+            $summaryparams['sum_pc'] = $params['program_code'];
+        }
+
+        $sumrow = $DB->get_record_sql(
+            "SELECT COUNT(DISTINCT u.id) AS total,
+                    COUNT(DISTINCT CASE WHEN u.lastaccess >= :sum_active THEN u.id END) AS active_count,
+                    AVG(sum_quiz.quiz_avg) AS avg_quiz_score"
+            . $summarybase . $summarywhere,
+            $summaryparams
+        );
+
+        $summaryactive = (int) ($sumrow->active_count ?? 0);
+        $summarytotal = (int) ($sumrow->total ?? $totalcount);
+        $summary = [
+            'total' => $summarytotal,
+            'active_count' => $summaryactive,
+            'at_risk_count' => $summarytotal - $summaryactive,
+            'avg_quiz_score' => $sumrow->avg_quiz_score !== null
+                ? round((float) $sumrow->avg_quiz_score, 1) : null,
+        ];
+
+        // Get distinct programs for filter dropdown (students only).
+        $programs = [];
+        if (!$isteacher) {
+            $programsql = "SELECT DISTINCT s.program_code, s.program
+                             FROM {elby_students} s
+                             JOIN {elby_sdms_users} su ON su.id = s.sdms_userid
+                            WHERE s.program_code IS NOT NULL AND s.program_code != ''
+                              AND su.user_type = 'student'
+                         ORDER BY s.program";
+            $programrecords = $DB->get_records_sql($programsql);
+            foreach ($programrecords as $rec) {
+                $programs[] = [
+                    'code' => $rec->program_code,
+                    'name' => $rec->program ?? $rec->program_code,
+                ];
+            }
         }
 
         return [
@@ -452,6 +551,8 @@ class metrics extends external_api {
             'total_count' => $totalcount,
             'page' => $page,
             'perpage' => $perpage,
+            'summary' => $summary,
+            'programs' => $programs,
         ];
     }
 
@@ -466,9 +567,11 @@ class metrics extends external_api {
                     'fullname' => new external_value(PARAM_TEXT, 'Full name'),
                     'sdms_id' => new external_value(PARAM_TEXT, 'SDMS ID'),
                     'program' => new external_value(PARAM_TEXT, 'Program name'),
+                    'program_code' => new external_value(PARAM_TEXT, 'Program/trade code'),
                     'position' => new external_value(PARAM_TEXT, 'Teacher position'),
                     'gender' => new external_value(PARAM_TEXT, 'Gender'),
                     'age' => new external_value(PARAM_INT, 'Age in years', VALUE_OPTIONAL),
+                    'class_grade' => new external_value(PARAM_TEXT, 'Class grade/level (e.g. Level 3)'),
                     'school_name' => new external_value(PARAM_TEXT, 'School name'),
                     'school_code' => new external_value(PARAM_TEXT, 'School code'),
                     'last_access' => new external_value(PARAM_INT, 'Last access timestamp'),
@@ -476,12 +579,26 @@ class metrics extends external_api {
                     'total_actions' => new external_value(PARAM_INT, 'Total actions this week'),
                     'quizzes_avg_score' => new external_value(PARAM_FLOAT, 'Average quiz score', VALUE_OPTIONAL),
                     'course_progress' => new external_value(PARAM_FLOAT, 'Course progress percentage', VALUE_OPTIONAL),
+                    'enrolled_courses' => new external_value(PARAM_INT, 'Number of enrolled courses'),
                     'status' => new external_value(PARAM_TEXT, 'Status: active or at_risk'),
                 ])
             ),
             'total_count' => new external_value(PARAM_INT, 'Total matching records'),
             'page' => new external_value(PARAM_INT, 'Current page'),
             'perpage' => new external_value(PARAM_INT, 'Results per page'),
+            'summary' => new external_single_structure([
+                'total' => new external_value(PARAM_INT, 'Total students matching filters'),
+                'active_count' => new external_value(PARAM_INT, 'Active students (last 7 days)'),
+                'at_risk_count' => new external_value(PARAM_INT, 'At-risk students'),
+                'avg_quiz_score' => new external_value(PARAM_FLOAT, 'Average quiz score across all', VALUE_OPTIONAL),
+            ]),
+            'programs' => new external_multiple_structure(
+                new external_single_structure([
+                    'code' => new external_value(PARAM_TEXT, 'Program/trade code'),
+                    'name' => new external_value(PARAM_TEXT, 'Program/trade name'),
+                ]),
+                'Distinct programs for filter dropdown'
+            ),
         ]);
     }
 
