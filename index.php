@@ -174,52 +174,6 @@ foreach ($programrows as $row) {
     $programdist[] = ['label' => $row->program, 'count' => (int) $row->cnt];
 }
 
-// Student SDMS status distribution.
-$statusrows = $DB->get_records_sql(
-    "SELECT su.sdms_status, COUNT(*) as cnt
-       FROM {elby_sdms_users} su
-      WHERE su.user_type = 'student'
-        AND su.sdms_status IS NOT NULL AND su.sdms_status != ''
-   GROUP BY su.sdms_status
-   ORDER BY cnt DESC");
-$statusdist = [];
-foreach ($statusrows as $row) {
-    $statusdist[] = ['label' => $row->sdms_status, 'count' => (int) $row->cnt];
-}
-
-// Age distribution (computed from date_of_birth).
-$today = new DateTime();
-$dobrows = $DB->get_records_sql(
-    "SELECT date_of_birth FROM {elby_students}
-      WHERE date_of_birth IS NOT NULL AND date_of_birth != ''");
-$agebuckets = ['Under 16' => 0, '16-17' => 0, '18-19' => 0, '20-21' => 0, '22-24' => 0, '25+' => 0];
-foreach ($dobrows as $row) {
-    $dob = DateTime::createFromFormat('Y-m-d', $row->date_of_birth);
-    if (!$dob) {
-        continue;
-    }
-    $age = $dob->diff($today)->y;
-    if ($age < 16) {
-        $agebuckets['Under 16']++;
-    } else if ($age <= 17) {
-        $agebuckets['16-17']++;
-    } else if ($age <= 19) {
-        $agebuckets['18-19']++;
-    } else if ($age <= 21) {
-        $agebuckets['20-21']++;
-    } else if ($age <= 24) {
-        $agebuckets['22-24']++;
-    } else {
-        $agebuckets['25+']++;
-    }
-}
-$agedist = [];
-foreach ($agebuckets as $label => $count) {
-    if ($count > 0) {
-        $agedist[] = ['label' => $label, 'count' => $count];
-    }
-}
-
 // Teacher gender breakdown.
 $maleteachers = (int) $DB->count_records_select('elby_teachers', "gender = 'MALE'", []);
 $femaleteachers = (int) $DB->count_records_select('elby_teachers', "gender = 'FEMALE'", []);
@@ -253,8 +207,6 @@ $statsdata = [
     'femaleStudents' => $femalestudents,
     'gradeDistribution' => $gradedist,
     'programDistribution' => $programdist,
-    'statusDistribution' => $statusdist,
-    'ageDistribution' => $agedist,
     'maleTeachers' => $maleteachers,
     'femaleTeachers' => $femaleteachers,
     'positionDistribution' => $positiondist,

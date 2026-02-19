@@ -52,16 +52,6 @@ function ajaxCall(methodname: string, args: Record<string, any>): Promise<any> {
     });
 }
 
-function parseRegionCode(regionCode: string): { province: string; district: string } {
-    if (!regionCode || regionCode.length < 2) {
-        return { province: '', district: '' };
-    }
-    // Region code format: PP DD SS (province, district, sector digits)
-    const province = regionCode.substring(0, 2);
-    const district = regionCode.length >= 4 ? regionCode.substring(0, 4) : '';
-    return { province, district };
-}
-
 // KPI Card
 function KpiCard({ label, value, color }: { label: string; value: string | number; color: string }) {
     return (
@@ -109,11 +99,7 @@ export default function SchoolDirectory() {
     const [schools, setSchools] = useState<SchoolCardData[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
-    const [provinceFilter, setProvinceFilter] = useState('');
-    const [districtFilter, setDistrictFilter] = useState('');
     const [sortMode, setSortMode] = useState<SortMode>('name');
-    const [provinces, setProvinces] = useState<string[]>([]);
-    const [districts, setDistricts] = useState<string[]>([]);
 
     useEffect(() => {
         loadSchools();
@@ -134,15 +120,8 @@ export default function SchoolDirectory() {
             const schoolsData = await fetchSchoolsFromDb();
             setSchools(schoolsData);
 
-            // Extract unique provinces and districts.
-            const provSet = new Set<string>();
-            const distSet = new Set<string>();
-            schoolsData.forEach(s => {
-                if (s.province) provSet.add(s.province);
-                if (s.district) distSet.add(s.district);
-            });
-            setProvinces(Array.from(provSet).sort());
-            setDistricts(Array.from(distSet).sort());
+
+
         } catch (err) {
             console.error('Failed to load schools:', err);
         } finally {
@@ -180,8 +159,6 @@ export default function SchoolDirectory() {
                 return false;
             }
         }
-        if (provinceFilter && school.province !== provinceFilter) return false;
-        if (districtFilter && school.district !== districtFilter) return false;
         return true;
     }).sort((a, b) => {
         switch (sortMode) {
@@ -202,11 +179,6 @@ export default function SchoolDirectory() {
     const avgScore = schoolsWithScores.length > 0
         ? Math.round(schoolsWithScores.reduce((sum, s) => sum + (s.avg_quiz_score || 0), 0) / schoolsWithScores.length)
         : 0;
-
-    // Available districts filtered by selected province.
-    const filteredDistricts = provinceFilter
-        ? districts.filter(d => d.startsWith(provinceFilter))
-        : districts;
 
     if (loading) {
         return (
@@ -251,33 +223,6 @@ export default function SchoolDirectory() {
                             onInput={(e) => setSearchQuery((e.target as HTMLInputElement).value)}
                         />
                     </div>
-
-                    {/* Province filter */}
-                    <select
-                        className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        value={provinceFilter}
-                        onChange={(e) => {
-                            setProvinceFilter((e.target as HTMLSelectElement).value);
-                            setDistrictFilter('');
-                        }}
-                    >
-                        <option value="">All Provinces</option>
-                        {provinces.map(p => (
-                            <option key={p} value={p}>Province {p}</option>
-                        ))}
-                    </select>
-
-                    {/* District filter */}
-                    <select
-                        className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        value={districtFilter}
-                        onChange={(e) => setDistrictFilter((e.target as HTMLSelectElement).value)}
-                    >
-                        <option value="">All Districts</option>
-                        {filteredDistricts.map(d => (
-                            <option key={d} value={d}>District {d}</option>
-                        ))}
-                    </select>
 
                     {/* Sort toggle */}
                     <select

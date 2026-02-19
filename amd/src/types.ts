@@ -61,8 +61,6 @@ export interface StatsData {
     femaleTeachers: number;
     gradeDistribution: Array<{ label: string; count: number }>;
     programDistribution: Array<{ label: string; count: number }>;
-    statusDistribution: Array<{ label: string; count: number }>;
-    ageDistribution: Array<{ label: string; count: number }>;
     positionDistribution: Array<{ label: string; count: number }>;
 }
 

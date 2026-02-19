@@ -188,61 +188,6 @@ const SchoolsIcon = () => (
     </svg>
 );
 
-// Status donut color map
-const statusColors: Record<string, string> = {
-    CONTINUING: '#22c55e',
-    NEW: '#3b82f6',
-    INACTIVE: '#9ca3af',
-    GRADUATED: '#8b5cf6',
-    TRANSFERRED: '#f59e0b',
-};
-
-// Status Donut Chart
-function StatusDonut({ data }: { data: Array<{ label: string; count: number }> }) {
-    const total = data.reduce((sum, d) => sum + d.count, 0);
-    if (total === 0) {
-        return (
-            <div className="relative w-28 h-28">
-                <svg viewBox="0 0 100 100" className="w-full h-full">
-                    <circle cx="50" cy="50" r="40" fill="none" stroke="#e5e7eb" strokeWidth="14" />
-                </svg>
-                <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-lg font-bold text-gray-400">0</span>
-                </div>
-            </div>
-        );
-    }
-
-    const circumference = 2 * Math.PI * 40;
-    let offset = 0;
-
-    return (
-        <div className="relative w-28 h-28">
-            <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
-                <circle cx="50" cy="50" r="40" fill="none" stroke="#e5e7eb" strokeWidth="14" />
-                {data.map((d) => {
-                    const len = (d.count / total) * circumference;
-                    const currentOffset = offset;
-                    offset += len;
-                    return (
-                        <circle
-                            key={d.label}
-                            cx="50" cy="50" r="40" fill="none"
-                            stroke={statusColors[d.label] || '#6b7280'}
-                            strokeWidth="14"
-                            strokeDasharray={`${len} ${circumference - len}`}
-                            strokeDashoffset={`${-currentOffset}`}
-                        />
-                    );
-                })}
-            </svg>
-            <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-lg font-bold text-gray-800">{total.toLocaleString()}</span>
-            </div>
-        </div>
-    );
-}
-
 export default function Dashboard({ user, stats, themeConfig }: DashboardProps) {
     const [schools, setSchools] = useState<SchoolUserCounts[]>([]);
     const [schoolsLoading, setSchoolsLoading] = useState(true);
@@ -574,8 +519,8 @@ export default function Dashboard({ user, stats, themeConfig }: DashboardProps) 
                 </div>
             </div>
 
-            {/* Row 5: Platform Traffic & Student Status + Age */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Row 5: Platform Traffic */}
+            <div className="gap-6">
                 {/* Platform Traffic */}
                 <div className="bg-white rounded-xl p-6 shadow-sm">
                     <div className="flex items-center justify-between mb-4">
@@ -618,59 +563,6 @@ export default function Dashboard({ user, stats, themeConfig }: DashboardProps) 
                             </div>
                         </>
                     )}
-                </div>
-
-                {/* Student Status & Age Distribution */}
-                <div className="bg-white rounded-xl p-6 shadow-sm">
-                    <h3 className="text-lg font-semibold text-gray-800 mb-4">Student Status & Age</h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                        {/* Status Donut */}
-                        <div>
-                            <h4 className="text-sm font-medium text-gray-600 mb-3">SDMS Status</h4>
-                            <div className="flex flex-col items-center gap-3">
-                                <StatusDonut data={stats.statusDistribution} />
-                                <div className="flex items-center gap-2 flex-wrap justify-center">
-                                    {stats.statusDistribution.map((d) => (
-                                        <div key={d.label} className="flex items-center gap-1">
-                                            <span
-                                                className="w-2 h-2 rounded-full flex-shrink-0"
-                                                style={{ backgroundColor: statusColors[d.label] || '#6b7280' }}
-                                            ></span>
-                                            <span className="text-xs text-gray-500">{d.label}: {d.count.toLocaleString()}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Age Distribution */}
-                        <div>
-                            <h4 className="text-sm font-medium text-gray-600 mb-3">Age Distribution</h4>
-                            {stats.ageDistribution.length === 0 ? (
-                                <div className="text-center py-4 text-gray-500 text-sm">No age data yet</div>
-                            ) : (
-                                <div className="flex flex-col" style={{ gap: '12px' }}>
-                                    {(() => {
-                                        const ageMax = Math.max(...stats.ageDistribution.map(d => d.count), 1);
-                                        return stats.ageDistribution.map((d) => (
-                                            <div key={d.label} className="flex items-center gap-2">
-                                                <div className="w-14 text-xs text-gray-600 flex-shrink-0">{d.label}</div>
-                                                <div className="flex-1 bg-gray-100 rounded-full overflow-hidden" style={{ height: '18px' }}>
-                                                    <div
-                                                        className="h-full bg-violet-500 rounded-full opacity-80 hover:opacity-100 transition-all"
-                                                        style={{ width: `${(d.count / ageMax) * 100}%` }}
-                                                    />
-                                                </div>
-                                                <span className="text-xs font-medium text-gray-700 w-10 text-right flex-shrink-0">
-                                                    {d.count.toLocaleString()}
-                                                </span>
-                                            </div>
-                                        ));
-                                    })()}
-                                </div>
-                            )}
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
