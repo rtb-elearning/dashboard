@@ -47,6 +47,8 @@ class traffic extends external_api {
         return new external_function_parameters([
             'period' => new external_value(PARAM_TEXT, 'Period: daily, weekly, or monthly', VALUE_DEFAULT, 'daily'),
             'days_back' => new external_value(PARAM_INT, 'Number of days to look back (max 365)', VALUE_DEFAULT, 30),
+            'from_date' => new external_value(PARAM_INT, 'Start timestamp (overrides days_back when > 0)', VALUE_DEFAULT, 0),
+            'to_date' => new external_value(PARAM_INT, 'End timestamp (defaults to now)', VALUE_DEFAULT, 0),
         ]);
     }
 
@@ -55,14 +57,21 @@ class traffic extends external_api {
      *
      * @param string $period Period grouping: daily, weekly, or monthly.
      * @param int $daysback Number of days to look back.
+     * @param int $fromdate Start timestamp (overrides days_back when > 0).
+     * @param int $todate End timestamp (defaults to now).
      * @return array Traffic data.
      */
-    public static function get_platform_traffic(string $period = 'daily', int $daysback = 30): array {
+    public static function get_platform_traffic(
+        string $period = 'daily',
+        int $daysback = 30,
+        int $fromdate = 0,
+        int $todate = 0
+    ): array {
         global $DB, $CFG;
 
         $params = self::validate_parameters(
             self::get_platform_traffic_parameters(),
-            ['period' => $period, 'days_back' => $daysback]
+            ['period' => $period, 'days_back' => $daysback, 'from_date' => $fromdate, 'to_date' => $todate]
         );
 
         $context = context_system::instance();
@@ -70,8 +79,15 @@ class traffic extends external_api {
         require_capability('local/elby_dashboard:viewreports', $context);
 
         $period = in_array($params['period'], ['daily', 'weekly', 'monthly']) ? $params['period'] : 'daily';
-        $daysback = min(365, max(1, $params['days_back']));
-        $starttime = time() - ($daysback * 86400);
+
+        if ($params['from_date'] > 0) {
+            $starttime = $params['from_date'];
+            $endtime = $params['to_date'] > 0 ? $params['to_date'] : time();
+        } else {
+            $daysback = min(365, max(1, $params['days_back']));
+            $starttime = time() - ($daysback * 86400);
+            $endtime = time();
+        }
 
         // Build DB-family-specific date formatting.
         $dbfamily = $DB->get_dbfamily();
@@ -105,11 +121,11 @@ class traffic extends external_api {
                        COUNT(DISTINCT userid) AS unique_users,
                        MIN(timecreated) AS period_start
                 FROM {logstore_standard_log}
-                WHERE timecreated >= :starttime AND userid > 0 AND anonymous = 0
+                WHERE timecreated >= :starttime AND timecreated <= :endtime AND userid > 0 AND anonymous = 0
                 GROUP BY period_label
                 ORDER BY period_start ASC";
 
-        $records = $DB->get_records_sql($sql, ['starttime' => $starttime]);
+        $records = $DB->get_records_sql($sql, ['starttime' => $starttime, 'endtime' => $endtime]);
 
         $data = [];
         foreach ($records as $rec) {

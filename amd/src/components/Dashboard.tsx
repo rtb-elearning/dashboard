@@ -193,7 +193,12 @@ export default function Dashboard({ user, stats, themeConfig }: DashboardProps) 
     const [schoolsLoading, setSchoolsLoading] = useState(true);
     const [traffic, setTraffic] = useState<TrafficDataPoint[]>([]);
     const [trafficLoading, setTrafficLoading] = useState(true);
-    const [trafficDays, setTrafficDays] = useState(7);
+
+    // Default date range: last 7 days.
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const weekAgoStr = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+    const [trafficFrom, setTrafficFrom] = useState(weekAgoStr);
+    const [trafficTo, setTrafficTo] = useState(todayStr);
 
     useEffect(() => {
         // Fetch school user counts
@@ -208,14 +213,16 @@ export default function Dashboard({ user, stats, themeConfig }: DashboardProps) 
             .finally(() => setSchoolsLoading(false));
     }, []);
 
-    // Fetch platform traffic whenever trafficDays changes.
+    // Fetch platform traffic whenever date range changes.
     useEffect(() => {
         setTrafficLoading(true);
-        ajaxCall('local_elby_dashboard_get_platform_traffic', { period: 'daily', days_back: trafficDays })
+        const fromTs = Math.floor(new Date(trafficFrom + 'T00:00:00').getTime() / 1000);
+        const toTs = Math.floor(new Date(trafficTo + 'T23:59:59').getTime() / 1000);
+        ajaxCall('local_elby_dashboard_get_platform_traffic', { period: 'daily', from_date: fromTs, to_date: toTs })
             .then((resp: { data: TrafficDataPoint[] }) => setTraffic(resp.data || []))
             .catch(() => setTraffic([]))
             .finally(() => setTrafficLoading(false));
-    }, [trafficDays]);
+    }, [trafficFrom, trafficTo]);
 
     const schoolMaxCount = schools.length > 0 ? Math.max(...schools.map(s => s.student_count)) : 1;
     const trafficMax = traffic.length > 0 ? Math.max(...traffic.map(t => t.unique_users), 1) : 1;
@@ -527,22 +534,30 @@ export default function Dashboard({ user, stats, themeConfig }: DashboardProps) 
             <div className="gap-6">
                 {/* Platform Traffic */}
                 <div className="bg-white rounded-xl p-6 shadow-sm">
-                    <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
                         <h3 className="text-lg font-semibold text-gray-800">Platform Traffic</h3>
-                        <div className="flex items-center gap-1">
-                            {[7, 14, 30, 90].map((d) => (
-                                <button
-                                    key={d}
-                                    onClick={() => setTrafficDays(d)}
-                                    className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
-                                        trafficDays === d
-                                            ? 'bg-blue-500 text-white'
-                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                    }`}
-                                >
-                                    {d}d
-                                </button>
-                            ))}
+                        <div className="flex items-center gap-2">
+                            <label className="flex items-center gap-1 text-xs text-gray-500">
+                                From
+                                <input
+                                    type="date"
+                                    value={trafficFrom}
+                                    max={trafficTo}
+                                    onChange={(e) => setTrafficFrom((e.target as HTMLInputElement).value)}
+                                    className="border border-gray-200 rounded-md px-2 py-1 text-xs text-gray-700 bg-white"
+                                />
+                            </label>
+                            <label className="flex items-center gap-1 text-xs text-gray-500">
+                                To
+                                <input
+                                    type="date"
+                                    value={trafficTo}
+                                    min={trafficFrom}
+                                    max={todayStr}
+                                    onChange={(e) => setTrafficTo((e.target as HTMLInputElement).value)}
+                                    className="border border-gray-200 rounded-md px-2 py-1 text-xs text-gray-700 bg-white"
+                                />
+                            </label>
                         </div>
                     </div>
                     {trafficLoading ? (
