@@ -168,17 +168,7 @@ class sdms_client {
                 return null;
             }
 
-            // Server error — retry with exponential backoff.
-            if ($httpcode >= 500) {
-                $lasterror = "HTTP {$httpcode}";
-                $this->log_request($url, $httpcode, $responsetime, $entitytype, $entityid, $lasterror);
-                if ($attempt < self::MAX_RETRIES) {
-                    sleep(pow(2, $attempt));
-                    continue;
-                }
-            }
-
-            // Connection error (httpcode = 0) — retry.
+            // Connection error (httpcode = 0) — retry with exponential backoff.
             if ($httpcode === 0) {
                 $curlerror = $curl->get_errno() . ': ' . ($curl->error ?? 'Connection failed');
                 $lasterror = "Connection error: {$curlerror}";
@@ -189,7 +179,7 @@ class sdms_client {
                 }
             }
 
-            // Other HTTP errors — do not retry.
+            // All other HTTP errors (including 5xx) — do not retry.
             if ($httpcode > 0) {
                 $lasterror = "HTTP {$httpcode}";
                 $this->log_request($url, $httpcode, $responsetime, $entitytype, $entityid, $lasterror);
