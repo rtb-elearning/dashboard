@@ -163,15 +163,20 @@ foreach ($graderows as $row) {
 
 // Program/trade distribution (top 8).
 $programrows = $DB->get_records_sql(
-    "SELECT program, COUNT(*) as cnt
-       FROM {elby_students}
-      WHERE program IS NOT NULL AND program != ''
-   GROUP BY program
+    "SELECT COALESCE(c.combination_desc, s.program, s.program_code) AS trade_name, COUNT(*) as cnt
+       FROM {elby_students} s
+       LEFT JOIN (
+           SELECT combination_code, MAX(combination_desc) AS combination_desc
+             FROM {elby_combinations}
+         GROUP BY combination_code
+       ) c ON c.combination_code = s.program_code
+      WHERE s.program_code IS NOT NULL AND s.program_code != ''
+   GROUP BY trade_name
    ORDER BY cnt DESC",
     null, 0, 8);
 $programdist = [];
 foreach ($programrows as $row) {
-    $programdist[] = ['label' => $row->program, 'count' => (int) $row->cnt];
+    $programdist[] = ['label' => $row->trade_name, 'count' => (int) $row->cnt];
 }
 
 // Teacher gender breakdown.
