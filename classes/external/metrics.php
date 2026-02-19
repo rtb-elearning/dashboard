@@ -321,9 +321,14 @@ class metrics extends external_api {
                        JOIN {enrol} e_ec ON e_ec.id = ue_ec.enrolid
                        GROUP BY ue_ec.userid)";
 
+        // Subquery 5: Combination descriptions (trade names) from SDMS cache.
+        $combosub = "(SELECT combination_code, MAX(combination_desc) AS combination_desc
+                      FROM {elby_combinations}
+                      GROUP BY combination_code)";
+
         $select = "SELECT u.id AS userid, u.firstname, u.lastname,
                           su.sdms_id,
-                          " . ($isteacher ? "et.position" : "st.program") . ",
+                          " . ($isteacher ? "et.position" : "COALESCE(combo.combination_desc, st.program, '') AS program") . ",
                           " . ($isteacher ? "et.gender" : "st.gender") . ",
                           " . ($isteacher ? "NULL AS date_of_birth" : "st.date_of_birth") . ",
                           " . ($isteacher ? "NULL AS class_grade" : "st.class_grade") . ",
@@ -351,6 +356,7 @@ class metrics extends external_api {
                   LEFT JOIN {$logsub} log_agg ON log_agg.userid = u.id
                   LEFT JOIN {$quizsub} quiz_agg ON quiz_agg.userid = u.id
                   LEFT JOIN {$enrollsub} enrol_agg ON enrol_agg.userid = u.id"
+                  . ($isteacher ? '' : " LEFT JOIN {$combosub} combo ON combo.combination_code = st.program_code")
                   . $progresssub;
 
         $where = " WHERE u.deleted = 0";
@@ -426,7 +432,7 @@ class metrics extends external_api {
         $totalcount = $DB->count_records_sql($countsql, $sqlparams);
 
         // Fetch paginated results.
-        $programorposition = $isteacher ? 'et.position' : 'st.program';
+        $programorposition = $isteacher ? 'et.position' : 'combo.combination_desc, st.program';
         $progressgroupby = $hascoursefilter ? ', progress_agg.course_progress' : '';
         $gendercol = $isteacher ? 'et.gender' : 'st.gender';
         $dobcol = $isteacher ? '' : ', st.date_of_birth';
@@ -531,17 +537,20 @@ class metrics extends external_api {
         // Get distinct programs for filter dropdown (students only).
         $programs = [];
         if (!$isteacher) {
-            $programsql = "SELECT DISTINCT s.program_code, s.program
+            $programsql = "SELECT s.program_code,
+                                  COALESCE(MAX(c.combination_desc), MAX(s.program), s.program_code) AS program_name
                              FROM {elby_students} s
                              JOIN {elby_sdms_users} su ON su.id = s.sdms_userid
+                             LEFT JOIN {elby_combinations} c ON c.combination_code = s.program_code
                             WHERE s.program_code IS NOT NULL AND s.program_code != ''
                               AND su.user_type = 'student'
-                         ORDER BY s.program";
+                         GROUP BY s.program_code
+                         ORDER BY program_name";
             $programrecords = $DB->get_records_sql($programsql);
             foreach ($programrecords as $rec) {
                 $programs[] = [
                     'code' => $rec->program_code,
-                    'name' => $rec->program ?? $rec->program_code,
+                    'name' => $rec->program_name ?? $rec->program_code,
                 ];
             }
         }

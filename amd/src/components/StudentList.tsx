@@ -197,15 +197,14 @@ export default function StudentList({ initialSchoolCode = '', initialCourseId = 
     }
 
     function handleExportCsv() {
-        const roleLabel = isTeacher ? 'Position' : 'Program';
-        const headers = ['Name', 'SDMS ID', roleLabel, ...(isTeacher ? [] : ['Level']), 'Gender', ...(isTeacher ? [] : ['Age']), 'School Name', 'School Code', 'Last Active', 'Active Days', 'Total Actions', 'Quiz Avg', 'Progress', ...(isTeacher ? [] : ['Enrolled Courses']), 'Status'];
+        const roleLabel = isTeacher ? 'Position' : 'Trade';
+        const headers = ['Name', 'SDMS ID', roleLabel, ...(isTeacher ? [] : ['Level']), 'Gender', 'School Name', 'School Code', 'Last Active', 'Active Days', 'Total Actions', 'Quiz Avg', 'Progress', ...(isTeacher ? [] : ['Enrolled Courses']), 'Status'];
         const rows = students.map(s => [
             s.fullname,
             s.sdms_id,
             isTeacher ? (s.position || '') : (s.program || ''),
             ...(isTeacher ? [] : [s.class_grade || '']),
             s.gender || '',
-            ...(isTeacher ? [] : [s.age !== null && s.age !== undefined ? String(s.age) : '']),
             s.school_name,
             s.school_code,
             s.last_access ? new Date(s.last_access * 1000).toISOString() : 'Never',
@@ -353,10 +352,9 @@ export default function StudentList({ initialSchoolCode = '', initialCourseId = 
                             <tr className="text-left text-gray-500 border-b border-gray-100">
                                 {sortableHeader('Name', 'lastname')}
                                 <th className="pb-3 font-medium">SDMS ID</th>
-                                <th className="pb-3 font-medium">{isTeacher ? 'Position' : 'Program'}</th>
+                                <th className="pb-3 font-medium">{isTeacher ? 'Position' : 'Trade'}</th>
                                 {!isTeacher && <th className="pb-3 font-medium">Level</th>}
                                 <th className="pb-3 font-medium">Gender</th>
-                                {!isTeacher && <th className="pb-3 font-medium">Age</th>}
                                 <th className="pb-3 font-medium">School Name</th>
                                 <th className="pb-3 font-medium">School Code</th>
                                 {sortableHeader('Last Active', 'last_access')}
@@ -364,7 +362,7 @@ export default function StudentList({ initialSchoolCode = '', initialCourseId = 
                                 {sortableHeader('Actions', 'total_actions')}
                                 {sortableHeader('Quiz Avg', 'quizzes_avg_score')}
                                 {sortableHeader('Progress', 'course_progress')}
-                                {!isTeacher && sortableHeader('Enrolled', 'enrolled_courses')}
+                                {!isTeacher && sortableHeader('Enrolled Courses', 'enrolled_courses')}
                                 <th className="pb-3 font-medium">Status</th>
                             </tr>
                         </thead>
@@ -372,7 +370,7 @@ export default function StudentList({ initialSchoolCode = '', initialCourseId = 
                             {loading ? (
                                 Array.from({ length: 5 }).map((_, i) => (
                                     <tr key={i} className="border-b border-gray-50">
-                                        {Array.from({ length: isTeacher ? 12 : 15 }).map((_, j) => (
+                                        {Array.from({ length: isTeacher ? 12 : 14 }).map((_, j) => (
                                             <td key={j} className="py-3 px-2">
                                                 <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
                                             </td>
@@ -381,7 +379,7 @@ export default function StudentList({ initialSchoolCode = '', initialCourseId = 
                                 ))
                             ) : students.length === 0 ? (
                                 <tr>
-                                    <td colSpan={isTeacher ? 12 : 15} className="py-12 text-center text-gray-500">
+                                    <td colSpan={isTeacher ? 12 : 14} className="py-12 text-center text-gray-500">
                                         {isTeacher ? 'No teachers found' : 'No students found'}
                                     </td>
                                 </tr>
@@ -393,7 +391,6 @@ export default function StudentList({ initialSchoolCode = '', initialCourseId = 
                                         <td className="py-3 px-2 text-gray-600">{isTeacher ? (student.position || '-') : (student.program || '-')}</td>
                                         {!isTeacher && <td className="py-3 px-2 text-gray-600">{student.class_grade || '-'}</td>}
                                         <td className="py-3 px-2 text-gray-600">{student.gender || '-'}</td>
-                                        {!isTeacher && <td className="py-3 px-2 text-gray-600">{student.age !== null && student.age !== undefined ? student.age : '-'}</td>}
                                         <td className="py-3 px-2 text-gray-600">{student.school_name || '-'}</td>
                                         <td className="py-3 px-2 text-gray-600">
                                             {canManage && editingUserId === student.userid ? (
