@@ -1168,6 +1168,7 @@ class metrics extends external_api {
             'compute_user_metrics' => '\local_elby_dashboard\task\compute_user_metrics',
             'aggregate_school_metrics' => '\local_elby_dashboard\task\aggregate_school_metrics',
             'refresh_sdms_cache' => '\local_elby_dashboard\task\refresh_sdms_cache',
+            'auto_link_by_email' => '\local_elby_dashboard\task\auto_link_by_email',
         ];
 
         if (!isset($taskmap[$taskname])) {

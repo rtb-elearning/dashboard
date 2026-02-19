@@ -636,6 +636,7 @@ export default function AdminPanel() {
                 user_metrics: 'compute_user_metrics',
                 school_metrics: 'aggregate_school_metrics',
                 sdms_cache: 'refresh_sdms_cache',
+                auto_link: 'auto_link_by_email',
             };
             const taskName = taskMap[type];
             if (!taskName) return;
@@ -775,6 +776,19 @@ export default function AdminPanel() {
                                 <p className="text-xs text-gray-500">Daily task - refreshes stale SDMS records</p>
                             </div>
                             {syncing === 'sdms_cache' && (
+                                <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                            )}
+                        </button>
+                        <button
+                            onClick={() => handleManualSync('auto_link')}
+                            disabled={syncing !== null}
+                            className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50"
+                        >
+                            <div>
+                                <p className="text-sm font-medium text-gray-800">Auto-Link Users by Email</p>
+                                <p className="text-xs text-gray-500">Links unlinked users whose email contains their SDMS code</p>
+                            </div>
+                            {syncing === 'auto_link' && (
                                 <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
                             )}
                         </button>

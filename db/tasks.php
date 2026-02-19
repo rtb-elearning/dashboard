@@ -55,6 +55,16 @@ $tasks = [
         'month'     => '*',
         'dayofweek' => '*',
     ],
+    // Daily at 4:30 AM — auto-link unlinked users by email.
+    [
+        'classname' => 'local_elby_dashboard\task\auto_link_by_email',
+        'blocking'  => 0,
+        'minute'    => '30',
+        'hour'      => '4',
+        'day'       => '*',
+        'month'     => '*',
+        'dayofweek' => '*',
+    ],
     // Weekly Sunday at 4:00 AM — purge old metrics and logs.
     [
         'classname' => 'local_elby_dashboard\task\cleanup_old_metrics',

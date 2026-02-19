@@ -200,6 +200,7 @@ $string['sdms_signup_link'] = 'Sign up with SDMS';
 $string['task_compute_user_metrics'] = 'Compute user engagement metrics';
 $string['task_aggregate_school_metrics'] = 'Aggregate school-level metrics';
 $string['task_refresh_sdms_cache'] = 'Refresh stale SDMS cache records';
+$string['task_auto_link_by_email'] = 'Auto-link users to SDMS by email';
 $string['task_cleanup_old_metrics'] = 'Clean up old metrics data';
 
 // Metrics API strings.
