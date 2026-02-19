@@ -52,28 +52,26 @@ class auto_link_by_email extends \core\task\scheduled_task {
 
         $syncservice = new \local_elby_dashboard\sync_service();
 
-        // Find unlinked users with RTB emails.
+        // Find unlinked users with RTB emails (numeric prefix only).
+        $regex = $DB->sql_regex();
         $sql = "SELECT u.id, u.email
                 FROM {user} u
                 LEFT JOIN {elby_sdms_users} su ON su.userid = u.id
                 WHERE su.id IS NULL AND u.deleted = 0
                   AND (u.email LIKE :email1 OR u.email LIKE :email2)
+                  AND u.email {$regex} :emailpattern
                 ORDER BY u.id ASC";
         $users = $DB->get_records_sql($sql, [
             'email1' => '%@rtb.ac.rw',
             'email2' => '%@rtb.gov.rw',
+            'emailpattern' => '^[0-9]+@',
         ], 0, 200); // Process up to 200 per run.
 
         $linked = 0;
         $failed = 0;
-        $skipped = 0;
+        $flagged = 0;
         foreach ($users as $user) {
             $sdmscode = explode('@', $user->email)[0];
-            if (!ctype_digit($sdmscode)) {
-                mtrace("  Skipping user {$user->id} ({$user->email}): non-numeric email prefix.");
-                $skipped++;
-                continue;
-            }
             try {
                 // Try student first.
                 $ok = $syncservice->link_user($user->id, $sdmscode, 'student');
@@ -93,8 +91,48 @@ class auto_link_by_email extends \core\task\scheduled_task {
                     $detail .= ' [debug: ' . $e->debuginfo . ']';
                 }
                 mtrace("  Failed to link user {$user->id} ({$user->email}): " . $detail);
+
+                // Flag users that got HTTP 500 so they're not retried.
+                if ($e instanceof \moodle_exception && !empty($e->debuginfo)
+                        && strpos($e->debuginfo, 'HTTP 500') !== false) {
+                    $this->flag_failed_user($user->id, $sdmscode, $detail);
+                    $flagged++;
+                }
             }
         }
-        mtrace("Auto-link by email: {$linked} linked, {$failed} failed, {$skipped} skipped out of " . count($users) . " unlinked users.");
+        mtrace("Auto-link by email: {$linked} linked, {$failed} failed, {$flagged} flagged out of " . count($users) . " unlinked users.");
+    }
+
+    /**
+     * Create a failed elby_sdms_users record so the user is excluded from future runs.
+     *
+     * @param int $userid Moodle user ID.
+     * @param string $sdmscode SDMS code from email prefix.
+     * @param string $error Error detail to store.
+     */
+    private function flag_failed_user(int $userid, string $sdmscode, string $error): void {
+        global $DB;
+
+        if ($DB->record_exists('elby_sdms_users', ['userid' => $userid])) {
+            return;
+        }
+
+        $now = time();
+        $record = new \stdClass();
+        $record->userid = $userid;
+        $record->sdms_id = $sdmscode;
+        $record->user_type = '';
+        $record->sync_status = 0;
+        $record->sync_error = $error;
+        $record->last_synced = $now;
+        $record->timecreated = $now;
+        $record->timemodified = $now;
+
+        try {
+            $DB->insert_record('elby_sdms_users', $record);
+            mtrace("  Flagged user {$userid} ({$sdmscode}) — will not retry.");
+        } catch (\Exception $e) {
+            mtrace("  Could not flag user {$userid}: " . $e->getMessage());
+        }
     }
 }
