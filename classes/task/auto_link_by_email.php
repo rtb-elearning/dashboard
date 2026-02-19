@@ -66,8 +66,14 @@ class auto_link_by_email extends \core\task\scheduled_task {
 
         $linked = 0;
         $failed = 0;
+        $skipped = 0;
         foreach ($users as $user) {
             $sdmscode = explode('@', $user->email)[0];
+            if (!ctype_digit($sdmscode)) {
+                mtrace("  Skipping user {$user->id} ({$user->email}): non-numeric email prefix.");
+                $skipped++;
+                continue;
+            }
             try {
                 // Try student first.
                 $ok = $syncservice->link_user($user->id, $sdmscode, 'student');
@@ -85,6 +91,6 @@ class auto_link_by_email extends \core\task\scheduled_task {
                 mtrace("  Failed to link user {$user->id} ({$user->email}): " . $e->getMessage());
             }
         }
-        mtrace("Auto-link by email: {$linked} linked, {$failed} failed out of " . count($users) . " unlinked users.");
+        mtrace("Auto-link by email: {$linked} linked, {$failed} failed, {$skipped} skipped out of " . count($users) . " unlinked users.");
     }
 }
