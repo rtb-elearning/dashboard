@@ -1180,6 +1180,28 @@ class metrics extends external_api {
 
         $taskclass = $taskmap[$taskname];
 
+        // Long-running tasks are queued as ad-hoc tasks to avoid blocking the web request.
+        $asynctasks = [
+            'auto_link_by_email' => '\local_elby_dashboard\task\auto_link_by_email_adhoc',
+        ];
+
+        if (isset($asynctasks[$taskname])) {
+            try {
+                $adhoc = new $asynctasks[$taskname]();
+                \core\task\manager::queue_adhoc_task($adhoc, true); // true = don't duplicate.
+                return [
+                    'success' => true,
+                    'message' => 'Task queued for background execution: ' . $taskname .
+                        '. It will run on the next cron cycle.',
+                ];
+            } catch (\Exception $e) {
+                return [
+                    'success' => false,
+                    'message' => 'Failed to queue task: ' . $e->getMessage(),
+                ];
+            }
+        }
+
         try {
             $task = \core\task\manager::get_scheduled_task($taskclass);
             if (!$task) {
