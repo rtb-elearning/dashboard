@@ -214,11 +214,14 @@ export default function Dashboard({ user, stats, themeConfig }: DashboardProps) 
     }, []);
 
     // Fetch platform traffic whenever date range changes.
+    // Auto-select period granularity based on range size.
     useEffect(() => {
         setTrafficLoading(true);
         const fromTs = Math.floor(new Date(trafficFrom + 'T00:00:00').getTime() / 1000);
         const toTs = Math.floor(new Date(trafficTo + 'T23:59:59').getTime() / 1000);
-        ajaxCall('local_elby_dashboard_get_platform_traffic', { period: 'daily', from_date: fromTs, to_date: toTs })
+        const rangeDays = Math.round((toTs - fromTs) / 86400);
+        const period = rangeDays > 90 ? 'monthly' : rangeDays > 14 ? 'weekly' : 'daily';
+        ajaxCall('local_elby_dashboard_get_platform_traffic', { period, from_date: fromTs, to_date: toTs })
             .then((resp: { data: TrafficDataPoint[] }) => setTraffic(resp.data || []))
             .catch(() => setTraffic([]))
             .finally(() => setTrafficLoading(false));
@@ -533,7 +536,7 @@ export default function Dashboard({ user, stats, themeConfig }: DashboardProps) 
             {/* Row 5: Platform Traffic */}
             <div className="gap-6">
                 {/* Platform Traffic */}
-                <div className="bg-white rounded-xl p-6 shadow-sm">
+                <div className="bg-white rounded-xl p-6 shadow-sm overflow-hidden">
                     <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
                         <h3 className="text-lg font-semibold text-gray-800">Platform Traffic</h3>
                         <div className="flex items-center gap-2">
@@ -572,21 +575,23 @@ export default function Dashboard({ user, stats, themeConfig }: DashboardProps) 
                         </div>
                     ) : (
                         <>
-                            <div className="flex items-end justify-between h-48 gap-2 px-2">
-                                {traffic.map((point) => (
-                                    <div key={point.period_label} className="flex flex-col items-center gap-1 flex-1">
-                                        <span className="text-xs font-medium text-gray-600">{point.unique_users}</span>
-                                        <div className="w-full flex justify-center" style={{ height: '10rem' }}>
-                                            <div className="flex items-end h-full w-full max-w-[2.5rem]">
-                                                <div
-                                                    className="w-full bg-blue-500 rounded-t opacity-80 hover:opacity-100 transition-opacity"
-                                                    style={{ height: `${(point.unique_users / trafficMax) * 100}%`, minHeight: point.unique_users > 0 ? '4px' : '0' }}
-                                                />
+                            <div className="overflow-x-auto">
+                                <div className="flex items-end h-48 gap-2 px-2" style={{ minWidth: traffic.length > 15 ? `${traffic.length * 3}rem` : undefined }}>
+                                    {traffic.map((point) => (
+                                        <div key={point.period_label} className="flex flex-col items-center gap-1 flex-1" style={{ minWidth: '2rem' }}>
+                                            <span className="text-xs font-medium text-gray-600 whitespace-nowrap">{point.unique_users}</span>
+                                            <div className="w-full flex justify-center" style={{ height: '10rem' }}>
+                                                <div className="flex items-end h-full w-full max-w-[2.5rem]">
+                                                    <div
+                                                        className="w-full bg-blue-500 rounded-t opacity-80 hover:opacity-100 transition-opacity"
+                                                        style={{ height: `${(point.unique_users / trafficMax) * 100}%`, minHeight: point.unique_users > 0 ? '4px' : '0' }}
+                                                    />
+                                                </div>
                                             </div>
+                                            <span className="text-xs text-gray-500 whitespace-nowrap">{point.period_label}</span>
                                         </div>
-                                        <span className="text-xs text-gray-500">{point.period_label}</span>
-                                    </div>
-                                ))}
+                                    ))}
+                                </div>
                             </div>
                             <div className="flex items-center gap-4 mt-3 pt-3 border-t border-gray-100">
                                 <div className="flex items-center gap-1.5">
