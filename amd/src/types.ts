@@ -344,3 +344,96 @@ export interface AccessLogResponse {
     page: number;
     perpage: number;
 }
+
+// School courses report types (for SchoolDetail)
+export interface SchoolTradeCourse {
+    id: number;
+    fullname: string;
+    enrolled_count: number;
+}
+
+export interface SchoolTradeLevel {
+    level_number: number;
+    level_name: string;
+    student_count: number;
+    courses: SchoolTradeCourse[];
+}
+
+export interface SchoolTrade {
+    code: string;
+    name: string;
+    levels: SchoolTradeLevel[];
+}
+
+export interface SchoolCoursesReport {
+    school_code: string;
+    school_name: string;
+    trades: SchoolTrade[];
+}
+
+// Enrollment coverage types
+export interface EnrollmentCoverageEntry {
+    combination_code: string;
+    combination_name: string;
+    level_number: number;
+    level_name: string;
+    sdms_student_count: number;
+    category_id: number;
+    category_name: string;
+    course_count: number;
+    enrolled_student_count: number;
+    coverage_status: 'mapped' | 'unmapped' | 'partial';
+}
+
+export interface EnrollmentCoverageSummary {
+    total_combos: number;
+    mapped_combos: number;
+    unmapped_combos: number;
+    total_sdms_students: number;
+    total_enrolled_students: number;
+}
+
+export interface EnrollmentCoverageResponse {
+    entries: EnrollmentCoverageEntry[];
+    summary: EnrollmentCoverageSummary;
+}
+
+// Enrollment logs types
+export interface EnrollmentLogEntry {
+    id: number;
+    userid: number;
+    user_fullname: string;
+    entity_id: string;
+    operation: string;
+    details: string;
+    timecreated: number;
+}
+
+export interface EnrollmentLogsSummary {
+    total_enrollments: number;
+    total_skips: number;
+    last_enrollment_time: number;
+}
+
+export interface EnrollmentLogsResponse {
+    logs: EnrollmentLogEntry[];
+    total_count: number;
+    page: number;
+    perpage: number;
+    summary: EnrollmentLogsSummary;
+}
+
+// Extended trade data (with category/course info)
+export interface TradeLevelData {
+    level_number: number;
+    category_id: number;
+    category_name: string;
+    course_count: number;
+    total_enrolled: number;
+}
+
+export interface ExtendedTradeData extends TradeData {
+    levels: TradeLevelData[];
+    total_course_count: number;
+    has_category_mapping: boolean;
+}

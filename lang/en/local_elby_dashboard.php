@@ -323,6 +323,40 @@ $string['people_overview'] = 'People Overview';
 $string['age_distribution'] = 'Student Age Distribution';
 $string['school_structure'] = 'School Structure';
 
+// =============================================
+// AUTO-ENROLLMENT
+// =============================================
+$string['auto_enroll_enabled'] = 'Auto-enroll students by trade & level';
+$string['auto_enroll_enabled_desc'] = 'When enabled, students are automatically enrolled into Moodle courses whose category idnumber matches their trade code and level (e.g., category idnumber "527:3" matches a student with combinationCode 527 and classGrade "Level 3").';
+$string['auto_enroll_success'] = 'Auto-enrolled in {$a} course(s)';
+$string['auto_enroll_no_match'] = 'No matching course category found for trade:level "{$a}"';
+
+// =============================================
+// REPORTS FROM CATEGORY TAGGING
+// =============================================
+$string['courses_by_trade'] = 'Courses by Trade';
+$string['no_course_category_mappings'] = 'No course category mappings found';
+$string['enrollment_coverage'] = 'Enrollment Coverage';
+$string['enrollment_coverage_desc'] = 'Platform-wide view of trade:level combinations and their mapping status to Moodle categories.';
+$string['total_combos'] = 'Total Combos';
+$string['mapped_combos'] = 'Mapped';
+$string['unmapped_combos'] = 'Unmapped';
+$string['sdms_students'] = 'SDMS Students';
+$string['enrolled_students_count'] = 'Enrolled';
+$string['coverage_status'] = 'Coverage Status';
+$string['coverage_mapped'] = 'Mapped';
+$string['coverage_unmapped'] = 'Unmapped';
+$string['coverage_partial'] = 'Partial';
+$string['enrollment_logs'] = 'Auto-enrollment Logs';
+$string['enrollment_logs_desc'] = 'Monitoring panel for enrollment sync activity.';
+$string['auto_enrollments'] = 'Auto-enrollments';
+$string['total_skipped'] = 'Skipped';
+$string['last_enrollment'] = 'Last Enrollment';
+$string['no_enrollment_logs'] = 'No enrollment logs found';
+$string['filter_all'] = 'All';
+$string['filter_enrolled'] = 'Enrolled';
+$string['filter_skipped'] = 'Skipped';
+
 // General strings.
 $string['loading'] = 'Loading...';
 $string['error'] = 'An error occurred';

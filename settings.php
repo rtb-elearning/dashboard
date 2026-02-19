@@ -257,4 +257,12 @@ if ($hassiteconfig) {
         'rtb.ac.rw',
         PARAM_HOST
     ));
+
+    // Auto-enroll students by trade & level.
+    $settings->add(new admin_setting_configcheckbox(
+        'local_elby_dashboard/auto_enroll_enabled',
+        get_string('auto_enroll_enabled', 'local_elby_dashboard'),
+        get_string('auto_enroll_enabled_desc', 'local_elby_dashboard'),
+        1
+    ));
 }

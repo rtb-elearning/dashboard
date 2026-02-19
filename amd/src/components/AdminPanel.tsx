@@ -24,7 +24,7 @@
  */
 
 import { useState, useEffect, useRef } from 'preact/hooks';
-import type { UnlinkedUser } from '../types';
+import type { UnlinkedUser, EnrollmentCoverageEntry, EnrollmentCoverageSummary, EnrollmentLogEntry, EnrollmentLogsSummary } from '../types';
 
 // @ts-ignore
 declare const require: (deps: string[], callback: (...args: any[]) => void) => void;
@@ -331,6 +331,272 @@ function LinkUserSection({ onLinked }: { onLinked: () => void }) {
     );
 }
 
+function EnrollmentCoverageSection() {
+    const [entries, setEntries] = useState<EnrollmentCoverageEntry[]>([]);
+    const [summary, setSummary] = useState<EnrollmentCoverageSummary | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [filter, setFilter] = useState<'all' | 'mapped' | 'unmapped' | 'partial'>('all');
+
+    useEffect(() => {
+        loadCoverage();
+    }, []);
+
+    async function loadCoverage() {
+        try {
+            setLoading(true);
+            const result = await ajaxCall('local_elby_dashboard_get_enrollment_coverage', {});
+            setEntries(result.entries || []);
+            setSummary(result.summary || null);
+        } catch (err) {
+            console.error('Failed to load enrollment coverage:', err);
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    const filtered = filter === 'all' ? entries : entries.filter(e => e.coverage_status === filter);
+
+    const statusColors: Record<string, string> = {
+        mapped: 'bg-green-100 text-green-700',
+        unmapped: 'bg-red-100 text-red-700',
+        partial: 'bg-yellow-100 text-yellow-700',
+    };
+
+    return (
+        <div className="bg-white rounded-xl p-6 shadow-sm mb-6">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Enrollment Coverage</h3>
+
+            {loading ? (
+                <div className="animate-pulse space-y-3">
+                    <div className="h-6 bg-gray-200 rounded w-64"></div>
+                    <div className="h-48 bg-gray-200 rounded"></div>
+                </div>
+            ) : (
+                <>
+                    {summary && (
+                        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
+                            <div className="bg-gray-50 rounded-lg p-3 text-center">
+                                <p className="text-lg font-bold text-gray-800">{summary.total_combos}</p>
+                                <p className="text-xs text-gray-500">Total Combos</p>
+                            </div>
+                            <div className="bg-green-50 rounded-lg p-3 text-center">
+                                <p className="text-lg font-bold text-green-700">{summary.mapped_combos}</p>
+                                <p className="text-xs text-gray-500">Mapped</p>
+                            </div>
+                            <div className="bg-red-50 rounded-lg p-3 text-center">
+                                <p className="text-lg font-bold text-red-700">{summary.unmapped_combos}</p>
+                                <p className="text-xs text-gray-500">Unmapped</p>
+                            </div>
+                            <div className="bg-blue-50 rounded-lg p-3 text-center">
+                                <p className="text-lg font-bold text-blue-700">{summary.total_sdms_students.toLocaleString()}</p>
+                                <p className="text-xs text-gray-500">SDMS Students</p>
+                            </div>
+                            <div className="bg-cyan-50 rounded-lg p-3 text-center">
+                                <p className="text-lg font-bold text-cyan-700">{summary.total_enrolled_students.toLocaleString()}</p>
+                                <p className="text-xs text-gray-500">Enrolled</p>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="flex gap-2 mb-4">
+                        {(['all', 'mapped', 'unmapped', 'partial'] as const).map(f => (
+                            <button
+                                key={f}
+                                onClick={() => setFilter(f)}
+                                className={`px-3 py-1.5 text-xs rounded-full transition-colors ${
+                                    filter === f
+                                        ? 'bg-blue-600 text-white'
+                                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                }`}
+                            >
+                                {f.charAt(0).toUpperCase() + f.slice(1)} ({f === 'all' ? entries.length : entries.filter(e => e.coverage_status === f).length})
+                            </button>
+                        ))}
+                    </div>
+
+                    {filtered.length === 0 ? (
+                        <div className="text-center text-gray-400 py-6 text-sm">No entries found</div>
+                    ) : (
+                        <div className="overflow-x-auto max-h-96 overflow-y-auto">
+                            <table className="w-full text-xs">
+                                <thead className="sticky top-0 bg-white">
+                                    <tr className="text-left text-gray-500 border-b border-gray-200">
+                                        <th className="pb-2 font-medium">Trade</th>
+                                        <th className="pb-2 font-medium">Level</th>
+                                        <th className="pb-2 font-medium text-right">SDMS Students</th>
+                                        <th className="pb-2 font-medium">Category</th>
+                                        <th className="pb-2 font-medium text-right">Courses</th>
+                                        <th className="pb-2 font-medium text-right">Enrolled</th>
+                                        <th className="pb-2 font-medium">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {filtered.map((entry, i) => (
+                                        <tr key={i} className={`border-b border-gray-50 ${entry.coverage_status === 'unmapped' ? 'bg-red-50/50' : ''}`}>
+                                            <td className="py-2 text-gray-800">{entry.combination_name}</td>
+                                            <td className="py-2 text-gray-600">{entry.level_name}</td>
+                                            <td className="py-2 text-gray-600 text-right">{entry.sdms_student_count}</td>
+                                            <td className="py-2 text-gray-600 truncate max-w-[120px]">{entry.category_name || '-'}</td>
+                                            <td className="py-2 text-gray-600 text-right">{entry.course_count}</td>
+                                            <td className="py-2 text-gray-600 text-right">{entry.enrolled_student_count}</td>
+                                            <td className="py-2">
+                                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[entry.coverage_status] || 'bg-gray-100 text-gray-700'}`}>
+                                                    {entry.coverage_status}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </>
+            )}
+        </div>
+    );
+}
+
+function EnrollmentLogsSection() {
+    const [logs, setLogs] = useState<EnrollmentLogEntry[]>([]);
+    const [summary, setSummary] = useState<EnrollmentLogsSummary | null>(null);
+    const [totalCount, setTotalCount] = useState(0);
+    const [page, setPage] = useState(0);
+    const [loading, setLoading] = useState(true);
+    const [operationFilter, setOperationFilter] = useState('');
+    const perpage = 25;
+
+    useEffect(() => {
+        loadLogs();
+    }, [page, operationFilter]);
+
+    async function loadLogs() {
+        try {
+            setLoading(true);
+            const result = await ajaxCall('local_elby_dashboard_get_enrollment_logs', {
+                page,
+                perpage,
+                operation: operationFilter,
+            });
+            setLogs(result.logs || []);
+            setTotalCount(result.total_count || 0);
+            setSummary(result.summary || null);
+        } catch (err) {
+            console.error('Failed to load enrollment logs:', err);
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    const totalPages = Math.ceil(totalCount / perpage);
+
+    return (
+        <div className="bg-white rounded-xl p-6 shadow-sm mb-6">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Auto-enrollment Logs</h3>
+
+            {loading && !summary ? (
+                <div className="animate-pulse space-y-3">
+                    <div className="h-6 bg-gray-200 rounded w-64"></div>
+                    <div className="h-48 bg-gray-200 rounded"></div>
+                </div>
+            ) : (
+                <>
+                    {summary && (
+                        <div className="grid grid-cols-3 gap-3 mb-4">
+                            <div className="bg-green-50 rounded-lg p-3 text-center">
+                                <p className="text-lg font-bold text-green-700">{summary.total_enrollments.toLocaleString()}</p>
+                                <p className="text-xs text-gray-500">Auto-enrollments</p>
+                            </div>
+                            <div className="bg-gray-50 rounded-lg p-3 text-center">
+                                <p className="text-lg font-bold text-gray-700">{summary.total_skips.toLocaleString()}</p>
+                                <p className="text-xs text-gray-500">Skipped</p>
+                            </div>
+                            <div className="bg-blue-50 rounded-lg p-3 text-center">
+                                <p className="text-lg font-bold text-blue-700">
+                                    {summary.last_enrollment_time ? formatTimestamp(summary.last_enrollment_time) : 'Never'}
+                                </p>
+                                <p className="text-xs text-gray-500">Last Enrollment</p>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="flex gap-2 mb-4">
+                        {[
+                            { value: '', label: 'All' },
+                            { value: 'create', label: 'Enrolled' },
+                            { value: 'skip', label: 'Skipped' },
+                        ].map(opt => (
+                            <button
+                                key={opt.value}
+                                onClick={() => { setOperationFilter(opt.value); setPage(0); }}
+                                className={`px-3 py-1.5 text-xs rounded-full transition-colors ${
+                                    operationFilter === opt.value
+                                        ? 'bg-blue-600 text-white'
+                                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                }`}
+                            >
+                                {opt.label}
+                            </button>
+                        ))}
+                    </div>
+
+                    {logs.length === 0 ? (
+                        <div className="text-center text-gray-400 py-6 text-sm">No enrollment logs found</div>
+                    ) : (
+                        <div className="overflow-x-auto max-h-80 overflow-y-auto">
+                            <table className="w-full text-xs">
+                                <thead className="sticky top-0 bg-white">
+                                    <tr className="text-left text-gray-500 border-b border-gray-200">
+                                        <th className="pb-2 font-medium">Time</th>
+                                        <th className="pb-2 font-medium">Student</th>
+                                        <th className="pb-2 font-medium">Trade:Level</th>
+                                        <th className="pb-2 font-medium">Status</th>
+                                        <th className="pb-2 font-medium">Details</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {logs.map(log => (
+                                        <tr key={log.id} className="border-b border-gray-50">
+                                            <td className="py-2 text-gray-500 whitespace-nowrap">{formatTimestamp(log.timecreated)}</td>
+                                            <td className="py-2 text-gray-800">{log.user_fullname}</td>
+                                            <td className="py-2 text-gray-600">{log.entity_id || '-'}</td>
+                                            <td className="py-2"><OperationBadge operation={log.operation} /></td>
+                                            <td className="py-2 text-gray-500 truncate max-w-[200px]">{log.details || '-'}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+
+                    {totalPages > 1 && (
+                        <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-100">
+                            <p className="text-xs text-gray-500">
+                                Showing {page * perpage + 1}-{Math.min((page + 1) * perpage, totalCount)} of {totalCount}
+                            </p>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => setPage(p => Math.max(0, p - 1))}
+                                    disabled={page === 0}
+                                    className="px-3 py-1.5 text-xs bg-gray-100 rounded hover:bg-gray-200 disabled:opacity-50"
+                                >
+                                    Previous
+                                </button>
+                                <button
+                                    onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+                                    disabled={page >= totalPages - 1}
+                                    className="px-3 py-1.5 text-xs bg-gray-100 rounded hover:bg-gray-200 disabled:opacity-50"
+                                >
+                                    Next
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </>
+            )}
+        </div>
+    );
+}
+
 export default function AdminPanel() {
     const [stats, setStats] = useState<AdminStats | null>(null);
     const [logs, setLogs] = useState<SyncLogEntry[]>([]);
@@ -458,6 +724,12 @@ export default function AdminPanel() {
             <div className="mb-6">
                 <LinkUserSection onLinked={loadAdminData} />
             </div>
+
+            {/* Enrollment Coverage Report */}
+            <EnrollmentCoverageSection />
+
+            {/* Auto-enrollment Logs */}
+            <EnrollmentLogsSection />
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Manual Sync Triggers */}

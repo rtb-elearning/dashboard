@@ -564,7 +564,7 @@ export default function Dashboard({ user, stats, themeConfig }: DashboardProps) 
                         </div>
                     </div>
                     {trafficLoading ? (
-                        <div className="flex items-end justify-between h-48 gap-2 px-2">
+                        <div className="flex items-end justify-between h-56 gap-2 px-2">
                             {[...Array(7)].map((_, i) => (
                                 <div key={i} className="flex-1 bg-gray-100 rounded-t animate-pulse" style={{ height: `${30 + Math.random() * 50}%` }} />
                             ))}
@@ -576,7 +576,7 @@ export default function Dashboard({ user, stats, themeConfig }: DashboardProps) 
                     ) : (
                         <>
                             <div className="overflow-x-auto">
-                                <div className="flex items-end h-48 gap-2 px-2" style={{ minWidth: traffic.length > 15 ? `${traffic.length * 3}rem` : undefined }}>
+                                <div className="flex items-end h-56 gap-2 px-2" style={{ minWidth: traffic.length > 15 ? `${traffic.length * 3}rem` : undefined }}>
                                     {traffic.map((point) => (
                                         <div key={point.period_label} className="flex flex-col items-center gap-1 flex-1" style={{ minWidth: '2rem' }}>
                                             <span className="text-xs font-medium text-gray-600 whitespace-nowrap">{point.unique_users}</span>

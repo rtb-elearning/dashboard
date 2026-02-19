@@ -652,12 +652,101 @@ class metrics extends external_api {
                 ];
             }
 
+            // Get level/category/course data for this trade.
+            $levelssql = "SELECT DISTINCT l.level_name,
+                                 g.grade_name
+                            FROM {elby_combinations} c
+                            JOIN {elby_levels} l ON l.id = c.levelid
+                            JOIN {elby_grades} g ON g.combinationid = c.id
+                           WHERE c.combination_code = :code" . $where . "
+                        ORDER BY g.grade_name";
+            $levelparams = array_merge(['code' => $trade->combination_code], $sqlparams);
+            $levelrecords = $DB->get_records_sql($levelssql, $levelparams);
+
+            // Extract unique level numbers from grade names.
+            $seenlevels = [];
+            foreach ($levelrecords as $rec) {
+                if (preg_match('/(\d+)/', $rec->grade_name, $m)) {
+                    $levnum = (int) $m[1];
+                    if (!isset($seenlevels[$levnum])) {
+                        $seenlevels[$levnum] = true;
+                    }
+                }
+            }
+
+            $levels = [];
+            $totalcoursecount = 0;
+            $hascategorymapping = false;
+
+            foreach (array_keys($seenlevels) as $levnum) {
+                $lookupkey = $trade->combination_code . ':' . $levnum;
+                $cat = $DB->get_record('course_categories', ['idnumber' => $lookupkey], 'id, name');
+
+                $catid = 0;
+                $catname = '';
+                $coursecount = 0;
+                $totalenrolled = 0;
+
+                if ($cat) {
+                    $catid = (int) $cat->id;
+                    $catname = $cat->name;
+                    $hascategorymapping = true;
+
+                    $catobj = \core_course_category::get($cat->id, \IGNORE_MISSING);
+                    if ($catobj) {
+                        $courses = $catobj->get_courses(['recursive' => true]);
+                        $coursecount = count($courses);
+                        $totalcoursecount += $coursecount;
+
+                        // Count enrolled students.
+                        $studentroleid = $DB->get_field('role', 'id', ['shortname' => 'student']);
+                        if ($studentroleid) {
+                            foreach ($courses as $course) {
+                                $coursecontext = \context_course::instance($course->id, \IGNORE_MISSING);
+                                if ($coursecontext) {
+                                    $totalenrolled += (int) $DB->count_records_sql(
+                                        "SELECT COUNT(DISTINCT u.id)
+                                           FROM {user} u
+                                           JOIN {user_enrolments} ue ON ue.userid = u.id
+                                           JOIN {enrol} e ON e.id = ue.enrolid
+                                           JOIN {role_assignments} ra ON ra.userid = u.id
+                                          WHERE e.courseid = :courseid
+                                            AND u.deleted = 0
+                                            AND ra.roleid = :roleid
+                                            AND ra.contextid = :contextid",
+                                        [
+                                            'courseid' => $course->id,
+                                            'roleid' => $studentroleid,
+                                            'contextid' => $coursecontext->id,
+                                        ]
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+
+                $levels[] = [
+                    'level_number' => $levnum,
+                    'category_id' => $catid,
+                    'category_name' => $catname,
+                    'course_count' => $coursecount,
+                    'total_enrolled' => $totalenrolled,
+                ];
+            }
+
+            // Sort levels by level_number.
+            usort($levels, fn($a, $b) => $a['level_number'] - $b['level_number']);
+
             $result[] = [
                 'trade_name' => $trade->combination_name,
                 'trade_code' => $trade->combination_code,
                 'trade_desc' => $trade->combination_desc ?? '',
                 'school_count' => (int) $trade->school_count,
                 'schools' => $schoollist,
+                'levels' => $levels,
+                'total_course_count' => $totalcoursecount,
+                'has_category_mapping' => $hascategorymapping,
             ];
         }
 
@@ -681,6 +770,18 @@ class metrics extends external_api {
                             'school_code' => new external_value(PARAM_TEXT, 'School code'),
                         ])
                     ),
+                    'levels' => new external_multiple_structure(
+                        new external_single_structure([
+                            'level_number' => new external_value(PARAM_INT, 'Level number'),
+                            'category_id' => new external_value(PARAM_INT, 'Matching Moodle category ID (0 if none)'),
+                            'category_name' => new external_value(PARAM_TEXT, 'Category name'),
+                            'course_count' => new external_value(PARAM_INT, 'Number of courses under category'),
+                            'total_enrolled' => new external_value(PARAM_INT, 'Total enrolled students'),
+                        ]),
+                        'Level/category data for this trade'
+                    ),
+                    'total_course_count' => new external_value(PARAM_INT, 'Total courses across all levels'),
+                    'has_category_mapping' => new external_value(PARAM_BOOL, 'Whether any level has a Moodle category'),
                 ])
             ),
         ]);

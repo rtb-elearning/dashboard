@@ -82,6 +82,15 @@ class sync_service {
         // Upsert user records in a transaction.
         $this->upsert_user_record($userid, $data, $usertype, $sdmscode);
 
+        // Auto-enroll student into matching courses (non-fatal).
+        if ($usertype === 'student') {
+            try {
+                $this->auto_enroll_student($userid, $data);
+            } catch (\Exception $e) {
+                debugging('Auto-enrollment failed for user ' . $userid . ': ' . $e->getMessage(), DEBUG_DEVELOPER);
+            }
+        }
+
         return true;
     }
 
@@ -544,5 +553,103 @@ class sync_service {
                 }
             }
         }
+    }
+
+    /**
+     * Auto-enroll a student into courses matching their trade and level.
+     *
+     * Looks up Moodle course categories whose idnumber matches
+     * "{combinationCode}:{levelNumber}" (e.g., "527:3") and enrolls the
+     * student into all courses under those categories.
+     *
+     * @param int $userid Moodle user ID.
+     * @param object $data SDMS student response data.
+     */
+    private function auto_enroll_student(int $userid, object $data): void {
+        global $DB;
+
+        // Check if auto-enrollment is enabled.
+        if (!get_config('local_elby_dashboard', 'auto_enroll_enabled')) {
+            return;
+        }
+
+        // Extract combination code.
+        $combinationcode = $data->combinationCode ?? null;
+        if (empty($combinationcode)) {
+            return;
+        }
+
+        // Extract level number from classGrade (e.g., "Level 3" → "3").
+        $classgrade = $data->classGrade ?? '';
+        if (!preg_match('/(\d+)/', $classgrade, $matches)) {
+            return;
+        }
+        $levelnumber = $matches[1];
+
+        // Build lookup key.
+        $lookupkey = $combinationcode . ':' . $levelnumber;
+
+        // Find matching course categories.
+        $categories = $DB->get_records('course_categories', ['idnumber' => $lookupkey], '', 'id');
+        if (empty($categories)) {
+            $this->log_enrollment($userid, 'skip', $lookupkey, 'No matching category found');
+            return;
+        }
+
+        // Get student role.
+        $studentrole = $DB->get_record('role', ['shortname' => 'student']);
+        if (!$studentrole) {
+            return;
+        }
+
+        $enrolledcount = 0;
+
+        foreach ($categories as $cat) {
+            $category = \core_course_category::get($cat->id, \IGNORE_MISSING);
+            if (!$category) {
+                continue;
+            }
+
+            // Get all courses under this category (recursively).
+            $courseids = $category->get_courses(['recursive' => true, 'idonly' => true]);
+
+            foreach ($courseids as $courseid) {
+                $result = enrol_try_internal_enrol($courseid, $userid, $studentrole->id);
+                if ($result) {
+                    $enrolledcount++;
+                }
+            }
+        }
+
+        if ($enrolledcount > 0) {
+            $this->log_enrollment($userid, 'create', $lookupkey,
+                'Enrolled in ' . $enrolledcount . ' course(s)');
+        } else {
+            $this->log_enrollment($userid, 'skip', $lookupkey,
+                'Category matched but no new enrollments');
+        }
+    }
+
+    /**
+     * Log an auto-enrollment operation to elby_sync_log.
+     *
+     * @param int $userid Moodle user ID.
+     * @param string $operation Operation: 'create' or 'skip'.
+     * @param string $lookupkey The trade:level lookup key.
+     * @param string $details Human-readable details.
+     */
+    private function log_enrollment(int $userid, string $operation, string $lookupkey, string $details): void {
+        global $DB;
+
+        $log = new \stdClass();
+        $log->sync_type = 'enrollment';
+        $log->entity_id = $lookupkey;
+        $log->userid = $userid;
+        $log->operation = $operation;
+        $log->details = $details;
+        $log->triggered_by = 'event';
+        $log->timecreated = time();
+
+        $DB->insert_record('elby_sync_log', $log);
     }
 }

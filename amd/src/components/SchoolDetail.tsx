@@ -24,7 +24,7 @@
  */
 
 import { useState, useEffect } from 'preact/hooks';
-import type { SchoolMetrics, EngagementDistribution, SchoolDemographics, SchoolInfoResponse, GenderBreakdown } from '../types';
+import type { SchoolMetrics, EngagementDistribution, SchoolDemographics, SchoolInfoResponse, GenderBreakdown, SchoolCoursesReport, SchoolTrade } from '../types';
 
 // @ts-ignore
 declare const require: (deps: string[], callback: (...args: any[]) => void) => void;
@@ -353,6 +353,123 @@ function SchoolHierarchy({ schoolInfo, expandedLevels, expandedCombos, onToggleL
     );
 }
 
+// School Courses Section — collapsible trade → level → courses tree
+function SchoolCoursesSection({ report }: { report: SchoolCoursesReport }) {
+    const [expandedTrades, setExpandedTrades] = useState<Set<string>>(new Set());
+    const [expandedTradeLevels, setExpandedTradeLevels] = useState<Set<string>>(new Set());
+
+    if (!report.trades || report.trades.length === 0) {
+        return (
+            <div className="bg-white rounded-xl p-6 shadow-sm mb-6">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">Courses by Trade</h3>
+                <div className="text-center text-gray-400 py-6 text-sm">No course category mappings found</div>
+            </div>
+        );
+    }
+
+    const toggleTrade = (code: string) => {
+        setExpandedTrades(prev => {
+            const next = new Set(prev);
+            next.has(code) ? next.delete(code) : next.add(code);
+            return next;
+        });
+    };
+
+    const toggleLevel = (key: string) => {
+        setExpandedTradeLevels(prev => {
+            const next = new Set(prev);
+            next.has(key) ? next.delete(key) : next.add(key);
+            return next;
+        });
+    };
+
+    return (
+        <div className="bg-white rounded-xl p-6 shadow-sm mb-6">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Courses by Trade</h3>
+            <div className="space-y-1">
+                {report.trades.map((trade: SchoolTrade) => {
+                    const isExpanded = expandedTrades.has(trade.code);
+                    const totalCourses = trade.levels.reduce((sum, l) => sum + l.courses.length, 0);
+                    return (
+                        <div key={trade.code}>
+                            <button
+                                onClick={() => toggleTrade(trade.code)}
+                                className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg hover:bg-gray-50 transition-colors text-left"
+                            >
+                                <svg className={`w-4 h-4 text-gray-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                                    fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                                </svg>
+                                <span className="font-medium text-gray-800">{trade.name}</span>
+                                <span className="text-xs text-gray-400 ml-auto">
+                                    {trade.levels.length} level{trade.levels.length !== 1 ? 's' : ''}, {totalCourses} course{totalCourses !== 1 ? 's' : ''}
+                                </span>
+                            </button>
+                            {isExpanded && (
+                                <div className="ml-6 border-l-2 border-gray-100 pl-2 space-y-0.5">
+                                    {trade.levels.map(level => {
+                                        const levelKey = `${trade.code}_${level.level_number}`;
+                                        const isLevelExpanded = expandedTradeLevels.has(levelKey);
+                                        return (
+                                            <div key={levelKey}>
+                                                <button
+                                                    onClick={() => toggleLevel(levelKey)}
+                                                    className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors text-left"
+                                                >
+                                                    <svg className={`w-3.5 h-3.5 text-gray-400 transition-transform ${isLevelExpanded ? 'rotate-90' : ''}`}
+                                                        fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                                                    </svg>
+                                                    <span className="text-sm font-medium text-gray-700">{level.level_name}</span>
+                                                    <span className="text-xs text-gray-400 ml-1">({level.student_count} students)</span>
+                                                    <span className="text-xs text-gray-400 ml-auto">
+                                                        {level.courses.length} course{level.courses.length !== 1 ? 's' : ''}
+                                                    </span>
+                                                </button>
+                                                {isLevelExpanded && (
+                                                    <div className="ml-6 pl-2 py-1">
+                                                        {level.courses.length === 0 ? (
+                                                            <p className="text-xs text-gray-400 px-3 py-1">No courses in this category</p>
+                                                        ) : (
+                                                            <table className="w-full text-xs">
+                                                                <thead>
+                                                                    <tr className="text-left text-gray-500 border-b border-gray-100">
+                                                                        <th className="pb-1.5 font-medium">Course</th>
+                                                                        <th className="pb-1.5 font-medium text-right">Enrolled</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    {level.courses.map(course => (
+                                                                        <tr key={course.id} className="border-b border-gray-50">
+                                                                            <td className="py-1.5">
+                                                                                <a href={`/course/view.php?id=${course.id}`}
+                                                                                    className="text-blue-600 hover:text-blue-800 hover:underline">
+                                                                                    {course.fullname}
+                                                                                </a>
+                                                                            </td>
+                                                                            <td className="py-1.5 text-right text-gray-600">
+                                                                                {course.enrolled_count}
+                                                                            </td>
+                                                                        </tr>
+                                                                    ))}
+                                                                </tbody>
+                                                            </table>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
+
 export default function SchoolDetail({ schoolCode }: SchoolDetailProps) {
     const [metrics, setMetrics] = useState<SchoolMetrics | null>(null);
     const [distribution, setDistribution] = useState<EngagementDistribution | null>(null);
@@ -364,6 +481,7 @@ export default function SchoolDetail({ schoolCode }: SchoolDetailProps) {
     const [schoolInfo, setSchoolInfo] = useState<SchoolInfoResponse | null>(null);
     const [expandedLevels, setExpandedLevels] = useState<Set<string>>(new Set());
     const [expandedCombos, setExpandedCombos] = useState<Set<string>>(new Set());
+    const [coursesReport, setCoursesReport] = useState<SchoolCoursesReport | null>(null);
 
     useEffect(() => {
         loadSchoolData();
@@ -372,7 +490,7 @@ export default function SchoolDetail({ schoolCode }: SchoolDetailProps) {
     async function loadSchoolData() {
         try {
             setLoading(true);
-            const [metricsResult, distResult, demoResult, infoResult] = await Promise.all([
+            const [metricsResult, distResult, demoResult, infoResult, coursesResult] = await Promise.all([
                 ajaxCall('local_elby_dashboard_get_school_metrics', {
                     school_code: schoolCode,
                     courseid: 0,
@@ -387,6 +505,9 @@ export default function SchoolDetail({ schoolCode }: SchoolDetailProps) {
                     school_code: schoolCode,
                 }),
                 ajaxCall('local_elby_dashboard_get_school_info', {
+                    school_code: schoolCode,
+                }),
+                ajaxCall('local_elby_dashboard_get_school_courses_report', {
                     school_code: schoolCode,
                 }),
             ]);
@@ -407,6 +528,9 @@ export default function SchoolDetail({ schoolCode }: SchoolDetailProps) {
                 if (!metricsResult.success && infoResult.school_name) {
                     setSchoolName(infoResult.school_name);
                 }
+            }
+            if (coursesResult && coursesResult.trades) {
+                setCoursesReport(coursesResult);
             }
 
             // If no pre-computed metrics, build live KPIs from student list.
@@ -732,6 +856,11 @@ export default function SchoolDetail({ schoolCode }: SchoolDetailProps) {
                         }}
                     />
                 </div>
+            )}
+
+            {/* Courses by Trade */}
+            {coursesReport && (
+                <SchoolCoursesSection report={coursesReport} />
             )}
         </div>
     );

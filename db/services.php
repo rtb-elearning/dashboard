@@ -60,6 +60,14 @@ $functions = [
         'ajax'         => true,
         'capabilities' => 'local/elby_dashboard:viewreports',
     ],
+    'local_elby_dashboard_get_school_courses_report' => [
+        'classname'    => 'local_elby_dashboard\external\course_report',
+        'methodname'   => 'get_school_courses_report',
+        'description'  => 'Get per-school report on trades, levels, and their Moodle courses',
+        'type'         => 'read',
+        'ajax'         => true,
+        'capabilities' => 'local/elby_dashboard:viewreports',
+    ],
 
     // SDMS integration APIs.
     'local_elby_dashboard_get_user_sdms_profile' => [
@@ -219,6 +227,26 @@ $functions = [
         'capabilities' => 'local/elby_dashboard:manage',
     ],
 
+    // Enrollment coverage report API.
+    'local_elby_dashboard_get_enrollment_coverage' => [
+        'classname'    => 'local_elby_dashboard\external\course_report',
+        'methodname'   => 'get_enrollment_coverage',
+        'description'  => 'Get enrollment coverage report showing trade:level mapping status and gaps',
+        'type'         => 'read',
+        'ajax'         => true,
+        'capabilities' => 'local/elby_dashboard:viewreports',
+    ],
+
+    // Enrollment logs API.
+    'local_elby_dashboard_get_enrollment_logs' => [
+        'classname'    => 'local_elby_dashboard\external\sdms',
+        'methodname'   => 'get_enrollment_logs',
+        'description'  => 'Get paginated auto-enrollment logs with summary',
+        'type'         => 'read',
+        'ajax'         => true,
+        'capabilities' => 'local/elby_dashboard:manage',
+    ],
+
     // Admin search for unlinked users.
     'local_elby_dashboard_search_unlinked_users' => [
         'classname'    => 'local_elby_dashboard\external\sdms',
@@ -255,6 +283,7 @@ $services = [
             'local_elby_dashboard_get_category_completion_stats',
             'local_elby_dashboard_get_course_report_by_school',
             'local_elby_dashboard_get_all_courses_report',
+            'local_elby_dashboard_get_school_courses_report',
             'local_elby_dashboard_get_user_sdms_profile',
             'local_elby_dashboard_get_school_info',
             'local_elby_dashboard_lookup_sdms_user',
@@ -274,6 +303,8 @@ $services = [
             'local_elby_dashboard_search_unlinked_users',
             'local_elby_dashboard_update_user_school',
             'local_elby_dashboard_get_schools_list',
+            'local_elby_dashboard_get_enrollment_coverage',
+            'local_elby_dashboard_get_enrollment_logs',
             'local_elby_dashboard_lookup_for_signup',
             'local_elby_dashboard_register_sdms_user',
         ],

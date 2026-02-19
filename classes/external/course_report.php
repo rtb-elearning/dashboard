@@ -631,6 +631,394 @@ class course_report extends external_api {
         ];
     }
 
+    // =========================================================================
+    // get_school_courses_report — Per-school report on trades, levels, courses.
+    // =========================================================================
+
+    /**
+     * Returns description of get_school_courses_report parameters.
+     *
+     * @return external_function_parameters
+     */
+    public static function get_school_courses_report_parameters(): external_function_parameters {
+        return new external_function_parameters([
+            'school_code' => new external_value(PARAM_TEXT, 'School code to report on'),
+        ]);
+    }
+
+    /**
+     * Get a per-school report on trades, levels, and their Moodle courses.
+     *
+     * For each trade:level combination found among the school's students,
+     * looks up matching Moodle categories (by idnumber = "{combinationCode}:{level}")
+     * and returns the courses under those categories with enrollment counts.
+     *
+     * @param string $school_code School code.
+     * @return array Report data.
+     */
+    public static function get_school_courses_report(string $school_code): array {
+        global $DB;
+
+        // Validate parameters.
+        $params = self::validate_parameters(
+            self::get_school_courses_report_parameters(),
+            ['school_code' => $school_code]
+        );
+        $school_code = $params['school_code'];
+
+        // Validate context and capability.
+        $context = context_system::instance();
+        self::validate_context($context);
+        require_capability('local/elby_dashboard:viewreports', $context);
+
+        // Look up the school.
+        $school = $DB->get_record('elby_schools', ['school_code' => $school_code]);
+        $schoolname = $school ? $school->school_name : $school_code;
+        $schoolid = $school ? $school->id : null;
+
+        if (!$schoolid) {
+            return [
+                'school_code' => $school_code,
+                'school_name' => $schoolname,
+                'trades' => [],
+            ];
+        }
+
+        // Get the school's students with their trade (program_code) and class_grade.
+        $sql = "SELECT s.id, s.program_code, s.program, s.class_grade, su.userid
+                  FROM {elby_students} s
+                  JOIN {elby_sdms_users} su ON su.id = s.sdms_userid
+                 WHERE su.schoolid = :schoolid
+                   AND su.user_type = 'student'
+                   AND s.program_code IS NOT NULL
+                   AND s.class_grade IS NOT NULL";
+        $students = $DB->get_records_sql($sql, ['schoolid' => $schoolid]);
+
+        // Group students by program_code → level_number.
+        $tradegroups = [];
+        foreach ($students as $student) {
+            $code = $student->program_code;
+            $classgrade = $student->class_grade;
+
+            // Extract level number.
+            if (!preg_match('/(\d+)/', $classgrade, $m)) {
+                continue;
+            }
+            $levelnumber = $m[1];
+
+            if (!isset($tradegroups[$code])) {
+                $tradegroups[$code] = [
+                    'name' => $student->program ?? $code,
+                    'levels' => [],
+                ];
+            }
+            if (!isset($tradegroups[$code]['levels'][$levelnumber])) {
+                $tradegroups[$code]['levels'][$levelnumber] = [
+                    'student_count' => 0,
+                    'user_ids' => [],
+                ];
+            }
+            $tradegroups[$code]['levels'][$levelnumber]['student_count']++;
+            $tradegroups[$code]['levels'][$levelnumber]['user_ids'][] = $student->userid;
+        }
+
+        // Get student role ID for enrollment count queries.
+        $studentroleid = $DB->get_field('role', 'id', ['shortname' => 'student']);
+
+        // Build output.
+        $trades = [];
+        foreach ($tradegroups as $code => $tradedata) {
+            $levels = [];
+            foreach ($tradedata['levels'] as $levelnumber => $leveldata) {
+                $lookupkey = $code . ':' . $levelnumber;
+
+                // Find matching Moodle category.
+                $categories = $DB->get_records('course_categories', ['idnumber' => $lookupkey], '', 'id');
+
+                $courses = [];
+                foreach ($categories as $cat) {
+                    $category = \core_course_category::get($cat->id, \IGNORE_MISSING);
+                    if (!$category) {
+                        continue;
+                    }
+
+                    $catcourses = $category->get_courses(['recursive' => true]);
+                    foreach ($catcourses as $course) {
+                        // Count enrolled students in this course.
+                        $enrolledcount = 0;
+                        if ($studentroleid) {
+                            $coursecontext = context_course::instance($course->id, \IGNORE_MISSING);
+                            if ($coursecontext) {
+                                $enrolledcount = (int) $DB->count_records_sql(
+                                    "SELECT COUNT(DISTINCT u.id)
+                                       FROM {user} u
+                                       JOIN {user_enrolments} ue ON ue.userid = u.id
+                                       JOIN {enrol} e ON e.id = ue.enrolid
+                                       JOIN {role_assignments} ra ON ra.userid = u.id
+                                      WHERE e.courseid = :courseid
+                                        AND u.deleted = 0
+                                        AND ra.roleid = :roleid
+                                        AND ra.contextid = :contextid",
+                                    [
+                                        'courseid' => $course->id,
+                                        'roleid' => $studentroleid,
+                                        'contextid' => $coursecontext->id,
+                                    ]
+                                );
+                            }
+                        }
+
+                        $courses[] = [
+                            'id' => $course->id,
+                            'fullname' => $course->fullname,
+                            'enrolled_count' => $enrolledcount,
+                        ];
+                    }
+                }
+
+                $levels[] = [
+                    'level_number' => (int) $levelnumber,
+                    'level_name' => 'Level ' . $levelnumber,
+                    'student_count' => $leveldata['student_count'],
+                    'courses' => $courses,
+                ];
+            }
+
+            // Sort levels by level_number.
+            usort($levels, fn($a, $b) => $a['level_number'] - $b['level_number']);
+
+            $trades[] = [
+                'code' => $code,
+                'name' => $tradedata['name'],
+                'levels' => $levels,
+            ];
+        }
+
+        // Sort trades alphabetically by name.
+        usort($trades, fn($a, $b) => strcmp($a['name'], $b['name']));
+
+        return [
+            'school_code' => $school_code,
+            'school_name' => $schoolname,
+            'trades' => $trades,
+        ];
+    }
+
+    /**
+     * Returns description of get_school_courses_report return value.
+     *
+     * @return external_single_structure
+     */
+    public static function get_school_courses_report_returns(): external_single_structure {
+        return new external_single_structure([
+            'school_code' => new external_value(PARAM_TEXT, 'School code'),
+            'school_name' => new external_value(PARAM_TEXT, 'School name'),
+            'trades' => new external_multiple_structure(
+                new external_single_structure([
+                    'code' => new external_value(PARAM_TEXT, 'Trade/combination code'),
+                    'name' => new external_value(PARAM_TEXT, 'Trade/combination name'),
+                    'levels' => new external_multiple_structure(
+                        new external_single_structure([
+                            'level_number' => new external_value(PARAM_INT, 'Level number'),
+                            'level_name' => new external_value(PARAM_TEXT, 'Level name'),
+                            'student_count' => new external_value(PARAM_INT, 'Number of students at this level'),
+                            'courses' => new external_multiple_structure(
+                                new external_single_structure([
+                                    'id' => new external_value(PARAM_INT, 'Course ID'),
+                                    'fullname' => new external_value(PARAM_TEXT, 'Course full name'),
+                                    'enrolled_count' => new external_value(PARAM_INT, 'Number of enrolled students'),
+                                ]),
+                                'Courses under the matching category'
+                            ),
+                        ]),
+                        'Levels within this trade'
+                    ),
+                ]),
+                'Trades at this school'
+            ),
+        ]);
+    }
+
+    // =========================================================================
+    // get_enrollment_coverage — Platform-wide enrollment coverage report.
+    // =========================================================================
+
+    /**
+     * Returns description of get_enrollment_coverage parameters.
+     *
+     * @return external_function_parameters
+     */
+    public static function get_enrollment_coverage_parameters(): external_function_parameters {
+        return new external_function_parameters([]);
+    }
+
+    /**
+     * Get enrollment coverage report showing all trade:level combos and their mapping status.
+     *
+     * For each distinct (program_code, class_grade) combination found in SDMS student data,
+     * checks if a matching Moodle category exists (by idnumber = "{code}:{level}"),
+     * counts courses under matched categories, and compares SDMS student counts
+     * with actual Moodle enrollments.
+     *
+     * @return array Enrollment coverage report data.
+     */
+    public static function get_enrollment_coverage(): array {
+        global $DB;
+
+        $context = context_system::instance();
+        self::validate_context($context);
+        require_capability('local/elby_dashboard:viewreports', $context);
+
+        // Get all distinct (program_code, class_grade) combos with student counts.
+        $sql = "SELECT s.program_code, s.program, s.class_grade,
+                       COUNT(DISTINCT su.userid) AS sdms_student_count
+                  FROM {elby_students} s
+                  JOIN {elby_sdms_users} su ON su.id = s.sdms_userid
+                 WHERE s.program_code IS NOT NULL
+                   AND s.class_grade IS NOT NULL
+                   AND su.user_type = 'student'
+              GROUP BY s.program_code, s.program, s.class_grade
+              ORDER BY s.program_code, s.class_grade";
+        $combos = $DB->get_records_sql($sql);
+
+        // Get student role ID.
+        $studentroleid = $DB->get_field('role', 'id', ['shortname' => 'student']);
+
+        $entries = [];
+        $totalmapped = 0;
+        $totalunmapped = 0;
+        $totalsdmsstudents = 0;
+        $totalenrolled = 0;
+
+        foreach ($combos as $combo) {
+            // Extract level number from class_grade.
+            if (!preg_match('/(\d+)/', $combo->class_grade, $m)) {
+                continue;
+            }
+            $levelnumber = (int) $m[1];
+            $lookupkey = $combo->program_code . ':' . $levelnumber;
+
+            $sdmscount = (int) $combo->sdms_student_count;
+            $totalsdmsstudents += $sdmscount;
+
+            // Check for matching Moodle category.
+            $category = $DB->get_record('course_categories', ['idnumber' => $lookupkey], 'id, name');
+
+            $categoryid = 0;
+            $categoryname = '';
+            $coursecount = 0;
+            $enrolledcount = 0;
+            $coveragestatus = 'unmapped';
+
+            if ($category) {
+                $categoryid = (int) $category->id;
+                $categoryname = $category->name;
+
+                // Count courses under this category (including subcategories).
+                $catobj = \core_course_category::get($category->id, \IGNORE_MISSING);
+                if ($catobj) {
+                    $courses = $catobj->get_courses(['recursive' => true]);
+                    $coursecount = count($courses);
+
+                    // Count enrolled students across all courses.
+                    foreach ($courses as $course) {
+                        if ($studentroleid) {
+                            $coursecontext = context_course::instance($course->id, \IGNORE_MISSING);
+                            if ($coursecontext) {
+                                $enrolledcount += (int) $DB->count_records_sql(
+                                    "SELECT COUNT(DISTINCT u.id)
+                                       FROM {user} u
+                                       JOIN {user_enrolments} ue ON ue.userid = u.id
+                                       JOIN {enrol} e ON e.id = ue.enrolid
+                                       JOIN {role_assignments} ra ON ra.userid = u.id
+                                      WHERE e.courseid = :courseid
+                                        AND u.deleted = 0
+                                        AND ra.roleid = :roleid
+                                        AND ra.contextid = :contextid",
+                                    [
+                                        'courseid' => $course->id,
+                                        'roleid' => $studentroleid,
+                                        'contextid' => $coursecontext->id,
+                                    ]
+                                );
+                            }
+                        }
+                    }
+                }
+
+                if ($coursecount > 0 && $enrolledcount > 0) {
+                    $coveragestatus = 'mapped';
+                } else {
+                    $coveragestatus = 'partial';
+                }
+                $totalmapped++;
+            } else {
+                $totalunmapped++;
+            }
+
+            $totalenrolled += $enrolledcount;
+
+            // Build level name from class_grade.
+            $levelname = 'Level ' . $levelnumber;
+
+            $entries[] = [
+                'combination_code' => $combo->program_code,
+                'combination_name' => $combo->program ?? $combo->program_code,
+                'level_number' => $levelnumber,
+                'level_name' => $levelname,
+                'sdms_student_count' => $sdmscount,
+                'category_id' => $categoryid,
+                'category_name' => $categoryname,
+                'course_count' => $coursecount,
+                'enrolled_student_count' => $enrolledcount,
+                'coverage_status' => $coveragestatus,
+            ];
+        }
+
+        return [
+            'entries' => $entries,
+            'summary' => [
+                'total_combos' => count($entries),
+                'mapped_combos' => $totalmapped,
+                'unmapped_combos' => $totalunmapped,
+                'total_sdms_students' => $totalsdmsstudents,
+                'total_enrolled_students' => $totalenrolled,
+            ],
+        ];
+    }
+
+    /**
+     * Returns description of get_enrollment_coverage return value.
+     *
+     * @return external_single_structure
+     */
+    public static function get_enrollment_coverage_returns(): external_single_structure {
+        return new external_single_structure([
+            'entries' => new external_multiple_structure(
+                new external_single_structure([
+                    'combination_code' => new external_value(PARAM_TEXT, 'Trade/combination code'),
+                    'combination_name' => new external_value(PARAM_TEXT, 'Trade/combination name'),
+                    'level_number' => new external_value(PARAM_INT, 'Level number'),
+                    'level_name' => new external_value(PARAM_TEXT, 'Level name'),
+                    'sdms_student_count' => new external_value(PARAM_INT, 'Students with this combo in SDMS'),
+                    'category_id' => new external_value(PARAM_INT, 'Matched category ID (0 if none)'),
+                    'category_name' => new external_value(PARAM_TEXT, 'Category name'),
+                    'course_count' => new external_value(PARAM_INT, 'Courses under category'),
+                    'enrolled_student_count' => new external_value(PARAM_INT, 'Actually enrolled in those courses'),
+                    'coverage_status' => new external_value(PARAM_TEXT, 'mapped, unmapped, or partial'),
+                ]),
+                'Coverage entries per trade:level combo'
+            ),
+            'summary' => new external_single_structure([
+                'total_combos' => new external_value(PARAM_INT, 'Total trade:level combos'),
+                'mapped_combos' => new external_value(PARAM_INT, 'Combos with matching categories'),
+                'unmapped_combos' => new external_value(PARAM_INT, 'Combos without matching categories'),
+                'total_sdms_students' => new external_value(PARAM_INT, 'Total students in SDMS'),
+                'total_enrolled_students' => new external_value(PARAM_INT, 'Total enrolled in Moodle'),
+            ]),
+        ]);
+    }
+
     /**
      * Returns description of get_all_courses_report return value.
      *

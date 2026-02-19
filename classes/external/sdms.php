@@ -1056,6 +1056,138 @@ class sdms extends external_api {
     }
 
     // =========================================================================
+    // get_enrollment_logs — Paginated auto-enrollment logs.
+    // =========================================================================
+
+    /**
+     * Parameters for get_enrollment_logs.
+     */
+    public static function get_enrollment_logs_parameters(): external_function_parameters {
+        return new external_function_parameters([
+            'page' => new external_value(PARAM_INT, 'Page number (0-based)', VALUE_DEFAULT, 0),
+            'perpage' => new external_value(PARAM_INT, 'Results per page', VALUE_DEFAULT, 25),
+            'operation' => new external_value(PARAM_TEXT, 'Filter by operation: create, skip, or empty for all',
+                VALUE_DEFAULT, ''),
+        ]);
+    }
+
+    /**
+     * Get paginated auto-enrollment logs from the sync log.
+     *
+     * @param int $page Page number (0-based).
+     * @param int $perpage Results per page.
+     * @param string $operation Filter by operation type.
+     * @return array Paginated enrollment log data.
+     */
+    public static function get_enrollment_logs(int $page = 0, int $perpage = 25, string $operation = ''): array {
+        global $DB;
+
+        $params = self::validate_parameters(
+            self::get_enrollment_logs_parameters(),
+            ['page' => $page, 'perpage' => $perpage, 'operation' => $operation]
+        );
+        $page = max(0, $params['page']);
+        $perpage = min(100, max(1, $params['perpage']));
+        $operation = $params['operation'];
+
+        $context = context_system::instance();
+        self::validate_context($context);
+        require_capability('local/elby_dashboard:manage', $context);
+
+        // Build WHERE clause.
+        $where = "sl.sync_type = :synctype";
+        $sqlparams = ['synctype' => 'enrollment'];
+
+        if (!empty($operation)) {
+            $where .= " AND sl.operation = :operation";
+            $sqlparams['operation'] = $operation;
+        }
+
+        // Count total.
+        $countsql = "SELECT COUNT(sl.id)
+                       FROM {elby_sync_log} sl
+                      WHERE {$where}";
+        $totalcount = $DB->count_records_sql($countsql, $sqlparams);
+
+        // Fetch paginated logs with user info.
+        $sql = "SELECT sl.id, sl.entity_id, sl.operation, sl.details, sl.timecreated,
+                       u.id AS userid, u.firstname, u.lastname
+                  FROM {elby_sync_log} sl
+             LEFT JOIN {user} u ON u.id = sl.userid
+                 WHERE {$where}
+              ORDER BY sl.timecreated DESC";
+        $records = $DB->get_records_sql($sql, $sqlparams, $page * $perpage, $perpage);
+
+        $logs = [];
+        foreach ($records as $rec) {
+            $logs[] = [
+                'id' => (int) $rec->id,
+                'userid' => (int) ($rec->userid ?? 0),
+                'user_fullname' => ($rec->firstname && $rec->lastname)
+                    ? $rec->firstname . ' ' . $rec->lastname
+                    : 'Unknown',
+                'entity_id' => $rec->entity_id ?? '',
+                'operation' => $rec->operation,
+                'details' => $rec->details ?? '',
+                'timecreated' => (int) $rec->timecreated,
+            ];
+        }
+
+        // Summary stats.
+        $totalcreates = $DB->count_records_sql(
+            "SELECT COUNT(id) FROM {elby_sync_log} WHERE sync_type = 'enrollment' AND operation = 'create'"
+        );
+        $totalskips = $DB->count_records_sql(
+            "SELECT COUNT(id) FROM {elby_sync_log} WHERE sync_type = 'enrollment' AND operation = 'skip'"
+        );
+        $lastenrollment = $DB->get_field_sql(
+            "SELECT MAX(timecreated)
+               FROM {elby_sync_log}
+              WHERE sync_type = 'enrollment' AND operation = 'create'"
+        );
+
+        return [
+            'logs' => $logs,
+            'total_count' => (int) $totalcount,
+            'page' => $page,
+            'perpage' => $perpage,
+            'summary' => [
+                'total_enrollments' => (int) $totalcreates,
+                'total_skips' => (int) $totalskips,
+                'last_enrollment_time' => (int) ($lastenrollment ?? 0),
+            ],
+        ];
+    }
+
+    /**
+     * Return structure for get_enrollment_logs.
+     */
+    public static function get_enrollment_logs_returns(): external_single_structure {
+        return new external_single_structure([
+            'logs' => new external_multiple_structure(
+                new external_single_structure([
+                    'id' => new external_value(PARAM_INT, 'Log entry ID'),
+                    'userid' => new external_value(PARAM_INT, 'Moodle user ID'),
+                    'user_fullname' => new external_value(PARAM_TEXT, 'User full name'),
+                    'entity_id' => new external_value(PARAM_TEXT, 'Trade:level key'),
+                    'operation' => new external_value(PARAM_TEXT, 'Operation: create or skip'),
+                    'details' => new external_value(PARAM_TEXT, 'Human-readable message'),
+                    'timecreated' => new external_value(PARAM_INT, 'Timestamp'),
+                ]),
+                'Enrollment log entries'
+            ),
+            'total_count' => new external_value(PARAM_INT, 'Total matching log entries'),
+            'page' => new external_value(PARAM_INT, 'Current page'),
+            'perpage' => new external_value(PARAM_INT, 'Results per page'),
+            'summary' => new external_single_structure([
+                'total_enrollments' => new external_value(PARAM_INT, 'Total auto-enrollments created'),
+                'total_skips' => new external_value(PARAM_INT, 'Total skipped enrollments'),
+                'last_enrollment_time' => new external_value(PARAM_INT, 'Timestamp of last enrollment'),
+            ]),
+        ]);
+    }
+
+    // =========================================================================
     // Helper methods.
     // =========================================================================
 
