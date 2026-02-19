@@ -193,6 +193,7 @@ export default function Dashboard({ user, stats, themeConfig }: DashboardProps) 
     const [schoolsLoading, setSchoolsLoading] = useState(true);
     const [traffic, setTraffic] = useState<TrafficDataPoint[]>([]);
     const [trafficLoading, setTrafficLoading] = useState(true);
+    const [trafficDays, setTrafficDays] = useState(7);
 
     useEffect(() => {
         // Fetch school user counts
@@ -205,13 +206,16 @@ export default function Dashboard({ user, stats, themeConfig }: DashboardProps) 
             })
             .catch(() => setSchools([]))
             .finally(() => setSchoolsLoading(false));
+    }, []);
 
-        // Fetch platform traffic (last 7 days)
-        ajaxCall('local_elby_dashboard_get_platform_traffic', { period: 'daily', days_back: 7 })
+    // Fetch platform traffic whenever trafficDays changes.
+    useEffect(() => {
+        setTrafficLoading(true);
+        ajaxCall('local_elby_dashboard_get_platform_traffic', { period: 'daily', days_back: trafficDays })
             .then((resp: { data: TrafficDataPoint[] }) => setTraffic(resp.data || []))
             .catch(() => setTraffic([]))
             .finally(() => setTrafficLoading(false));
-    }, []);
+    }, [trafficDays]);
 
     const schoolMaxCount = schools.length > 0 ? Math.max(...schools.map(s => s.student_count)) : 1;
     const trafficMax = traffic.length > 0 ? Math.max(...traffic.map(t => t.unique_users), 1) : 1;
@@ -525,7 +529,21 @@ export default function Dashboard({ user, stats, themeConfig }: DashboardProps) 
                 <div className="bg-white rounded-xl p-6 shadow-sm">
                     <div className="flex items-center justify-between mb-4">
                         <h3 className="text-lg font-semibold text-gray-800">Platform Traffic</h3>
-                        <span className="text-sm text-gray-500">Last 7 days</span>
+                        <div className="flex items-center gap-1">
+                            {[7, 14, 30, 90].map((d) => (
+                                <button
+                                    key={d}
+                                    onClick={() => setTrafficDays(d)}
+                                    className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
+                                        trafficDays === d
+                                            ? 'bg-blue-500 text-white'
+                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                    }`}
+                                >
+                                    {d}d
+                                </button>
+                            ))}
+                        </div>
                     </div>
                     {trafficLoading ? (
                         <div className="flex items-end justify-between h-48 gap-2 px-2">
