@@ -81,7 +81,7 @@ function SchoolCard({ school, onClick }: { school: SchoolCardData; onClick: () =
                     <p className="text-lg font-bold text-green-600">{school.total_active}</p>
                 </div>
                 <div>
-                    <p className="text-xs text-gray-500">At Risk</p>
+                    <p className="text-xs text-gray-500">Inactive</p>
                     <p className="text-lg font-bold text-red-500">{school.at_risk_count}</p>
                 </div>
                 <div>
@@ -207,7 +207,7 @@ export default function SchoolDirectory() {
                 <KpiCard label="Total Schools" value={filteredSchools.length} color="bg-blue-50" />
                 <KpiCard label="Total Enrolled" value={totalEnrolled.toLocaleString()} color="bg-cyan-50" />
                 <KpiCard label="Active Students" value={totalActive.toLocaleString()} color="bg-green-50" />
-                <KpiCard label="At Risk" value={totalAtRisk.toLocaleString()} color="bg-red-50" />
+                <KpiCard label="Inactive" value={totalAtRisk.toLocaleString()} color="bg-red-50" />
             </div>
 
             {/* Filters */}

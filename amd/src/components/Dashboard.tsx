@@ -347,7 +347,7 @@ export default function Dashboard({ user, stats, themeConfig }: DashboardProps) 
                                     </div>
                                     <div className="flex items-center gap-1.5">
                                         <span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
-                                        <span className="text-xs text-gray-500">At Risk</span>
+                                        <span className="text-xs text-gray-500">Inactive</span>
                                     </div>
                                     <div className="flex items-center gap-1.5">
                                         <span className="w-2.5 h-2.5 rounded-full bg-red-500"></span>
@@ -369,7 +369,7 @@ export default function Dashboard({ user, stats, themeConfig }: DashboardProps) 
                             <p className="text-lg font-bold text-green-700">{stats.activeThisWeek.toLocaleString()}</p>
                         </div>
                         <div className="bg-amber-50 rounded-lg p-3">
-                            <p className="text-xs text-gray-500">At Risk</p>
+                            <p className="text-xs text-gray-500">Inactive</p>
                             <p className="text-lg font-bold text-amber-700">{stats.atRisk.toLocaleString()}</p>
                         </div>
                         <div className="bg-red-50 rounded-lg p-3">

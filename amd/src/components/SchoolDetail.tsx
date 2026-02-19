@@ -81,7 +81,7 @@ function EngagementBar({ distribution }: { distribution: EngagementDistribution 
                 )}
                 {atRiskPct > 0 && (
                     <div className="bg-red-500 transition-all" style={{ width: `${atRiskPct}%` }}
-                        title={`At Risk: ${distribution.at_risk_count}`} />
+                        title={`Inactive: ${distribution.at_risk_count}`} />
                 )}
             </div>
             <div className="flex flex-wrap gap-4 text-xs">
@@ -99,7 +99,7 @@ function EngagementBar({ distribution }: { distribution: EngagementDistribution 
                 </span>
                 <span className="flex items-center gap-1">
                     <span className="w-3 h-3 rounded-full bg-red-500"></span>
-                    At Risk ({distribution.at_risk_count})
+                    Inactive ({distribution.at_risk_count})
                 </span>
             </div>
         </div>
@@ -642,7 +642,7 @@ export default function SchoolDetail({ schoolCode }: SchoolDetailProps) {
             ['School Code', schoolCode],
             ['Total Enrolled', String(metrics.total_enrolled)],
             ['Total Active', String(metrics.total_active)],
-            ['At Risk', String(metrics.at_risk_count)],
+            ['Inactive', String(metrics.at_risk_count)],
             ['Avg Quiz Score', String(metrics.avg_quiz_score)],
             ['Avg Course Progress', String(metrics.avg_course_progress)],
             ['Avg Active Days', String(metrics.avg_active_days)],
@@ -742,7 +742,7 @@ export default function SchoolDetail({ schoolCode }: SchoolDetailProps) {
                         icon={<svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>}
                     />
                     <KpiCard
-                        label="At Risk"
+                        label="Inactive"
                         value={metrics.at_risk_count.toLocaleString()}
                         color="bg-red-50"
                         icon={<svg className="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 24 24"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>}

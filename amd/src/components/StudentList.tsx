@@ -53,7 +53,7 @@ function StatusBadge({ status }: { status: string }) {
         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
             isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
         }`}>
-            {isActive ? 'Active' : 'At Risk'}
+            {isActive ? 'Active' : 'Inactive'}
         </span>
     );
 }
@@ -289,7 +289,7 @@ export default function StudentList({ initialSchoolCode = '', initialCourseId = 
                         <option value="high">High</option>
                         <option value="medium">Medium</option>
                         <option value="low">Low</option>
-                        <option value="at_risk">At Risk</option>
+                        <option value="at_risk">Inactive</option>
                     </select>
 
                     {/* Program/Trade filter */}
@@ -332,7 +332,7 @@ export default function StudentList({ initialSchoolCode = '', initialCourseId = 
                     </div>
                     <div className="bg-white rounded-xl p-4 shadow-sm">
                         <div className="text-2xl font-bold text-red-600">{summary.at_risk_count.toLocaleString()}</div>
-                        <div className="text-sm text-gray-500">At Risk</div>
+                        <div className="text-sm text-gray-500">Inactive</div>
                     </div>
                     <div className="bg-white rounded-xl p-4 shadow-sm">
                         <div className="text-2xl font-bold text-blue-600">
