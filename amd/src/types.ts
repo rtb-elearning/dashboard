@@ -327,6 +327,35 @@ export interface TrafficDataPoint {
     period_start: number;
 }
 
+export interface HeatmapDataPoint {
+    day_of_week: number;  // 0=Mon..6=Sun
+    hour_of_day: number;  // 0-23
+    action_count: number;
+}
+
+export interface TopActiveUser {
+    userid: number;
+    fullname: string;
+    school_name: string;
+    school_code: string;
+    user_type: string;
+    total_actions: number;
+    active_days: number;
+}
+
+export interface TrafficBySchool {
+    school_code: string;
+    school_name: string;
+    total_actions: number;
+    unique_users: number;
+}
+
+export interface ActionBreakdown {
+    component: string;
+    label: string;
+    action_count: number;
+}
+
 // Unlinked user type (for admin SDMS linking)
 export interface UnlinkedUser {
     userid: number;

@@ -245,6 +245,10 @@ $string['teacher_list'] = 'Teacher List';
 
 // Traffic report strings.
 $string['traffic_report'] = 'Platform Traffic';
+$string['traffic_heatmap'] = 'Peak Hours';
+$string['traffic_top_users'] = 'Top Active Users';
+$string['traffic_by_school'] = 'Traffic by School';
+$string['traffic_action_breakdown'] = 'Action Type Breakdown';
 
 // Access log strings.
 $string['access_log'] = 'Access Log';

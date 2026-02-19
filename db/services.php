@@ -189,6 +189,39 @@ $functions = [
         'capabilities' => 'local/elby_dashboard:viewreports',
     ],
 
+    'local_elby_dashboard_get_traffic_heatmap' => [
+        'classname'    => 'local_elby_dashboard\external\traffic',
+        'methodname'   => 'get_traffic_heatmap',
+        'description'  => 'Get traffic heatmap data (day of week x hour of day)',
+        'type'         => 'read',
+        'ajax'         => true,
+        'capabilities' => 'local/elby_dashboard:viewreports',
+    ],
+    'local_elby_dashboard_get_top_active_users' => [
+        'classname'    => 'local_elby_dashboard\external\traffic',
+        'methodname'   => 'get_top_active_users',
+        'description'  => 'Get top active users ranked by total actions',
+        'type'         => 'read',
+        'ajax'         => true,
+        'capabilities' => 'local/elby_dashboard:viewreports',
+    ],
+    'local_elby_dashboard_get_traffic_by_school' => [
+        'classname'    => 'local_elby_dashboard\external\traffic',
+        'methodname'   => 'get_traffic_by_school',
+        'description'  => 'Get traffic data grouped by school',
+        'type'         => 'read',
+        'ajax'         => true,
+        'capabilities' => 'local/elby_dashboard:viewreports',
+    ],
+    'local_elby_dashboard_get_traffic_action_breakdown' => [
+        'classname'    => 'local_elby_dashboard\external\traffic',
+        'methodname'   => 'get_traffic_action_breakdown',
+        'description'  => 'Get traffic action breakdown by component type',
+        'type'         => 'read',
+        'ajax'         => true,
+        'capabilities' => 'local/elby_dashboard:viewreports',
+    ],
+
     // User access log API.
     'local_elby_dashboard_get_user_access_log' => [
         'classname'    => 'local_elby_dashboard\external\access_log',
@@ -298,6 +331,10 @@ $services = [
             'local_elby_dashboard_get_school_demographics',
             'local_elby_dashboard_trigger_task',
             'local_elby_dashboard_get_platform_traffic',
+            'local_elby_dashboard_get_traffic_heatmap',
+            'local_elby_dashboard_get_top_active_users',
+            'local_elby_dashboard_get_traffic_by_school',
+            'local_elby_dashboard_get_traffic_action_breakdown',
             'local_elby_dashboard_get_user_access_log',
             'local_elby_dashboard_self_link_sdms',
             'local_elby_dashboard_search_unlinked_users',
