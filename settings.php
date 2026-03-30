@@ -193,6 +193,26 @@ if ($hassiteconfig) {
     ));
 
     // =============================================
+    // BLENDED LEARNING SETTINGS
+    // =============================================
+    $settings->add(new admin_setting_heading(
+        'local_elby_dashboard/blendedlearningheading',
+        get_string('blendedlearningheading', 'local_elby_dashboard'),
+        get_string('blendedlearningheading_desc', 'local_elby_dashboard')
+    ));
+
+    // Blended Learning Parent Category.
+    $categories = \core_course_category::make_categories_list();
+    $categoryoptions = [0 => get_string('none')] + $categories;
+    $settings->add(new admin_setting_configselect(
+        'local_elby_dashboard/blended_learning_category',
+        get_string('blended_learning_category', 'local_elby_dashboard'),
+        get_string('blended_learning_category_desc', 'local_elby_dashboard'),
+        0,
+        $categoryoptions
+    ));
+
+    // =============================================
     // MENU CUSTOMIZATION
     // =============================================
     $settings->add(new admin_setting_heading(
@@ -202,7 +222,7 @@ if ($hassiteconfig) {
     ));
 
     // Menu items to show/hide.
-    $menuitems = ['courses', 'presence', 'communication', 'event', 'pedagogy', 'message', 'completion', 'settings'];
+    $menuitems = ['courses', 'presence', 'communication', 'event', 'pedagogy', 'message', 'completion', 'settings', 'blended_learning'];
 
     foreach ($menuitems as $item) {
         $settings->add(new admin_setting_configcheckbox(

@@ -39,6 +39,7 @@ const menuItems = [
     { id: 'teachers', name: 'Teachers', icon: 'presence', url: '/local/elby_dashboard/teachers.php', capability: 'viewreports' },
     { id: 'traffic', name: 'Traffic', icon: 'event', url: '/local/elby_dashboard/traffic.php', capability: 'viewreports' },
     { id: 'accesslog', name: 'Access Log', icon: 'courses', url: '/local/elby_dashboard/accesslog.php', capability: 'viewreports' },
+    { id: 'blended_learning', name: 'Blended Learning', icon: 'blended', url: '/local/elby_dashboard/blended_learning.php', capability: 'viewreports' },
     { id: 'admin', name: 'Admin Panel', icon: 'settings', url: '/local/elby_dashboard/admin/index.php', capability: 'admin' },
 ];
 
@@ -87,6 +88,11 @@ const icons: Record<string, JSX.Element> = {
     completion: (
         <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
             <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/>
+        </svg>
+    ),
+    blended: (
+        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14zM5 15h14v2H5v-2zm0-4h14v2H5v-2zm0-4h8v2H5V7z"/>
         </svg>
     ),
     settings: (

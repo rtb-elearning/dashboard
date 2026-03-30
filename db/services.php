@@ -290,6 +290,40 @@ $functions = [
         'capabilities' => 'local/elby_dashboard:manage',
     ],
 
+    // Blended Learning APIs.
+    'local_elby_dashboard_get_blended_learning_metrics' => [
+        'classname'    => 'local_elby_dashboard\external\blended_learning',
+        'methodname'   => 'get_blended_learning_metrics',
+        'description'  => 'Get blended learning metrics for the configured parent category',
+        'type'         => 'read',
+        'ajax'         => true,
+        'capabilities' => 'local/elby_dashboard:viewreports',
+    ],
+    'local_elby_dashboard_get_blended_learning_schools' => [
+        'classname'    => 'local_elby_dashboard\external\blended_learning',
+        'methodname'   => 'get_blended_learning_schools',
+        'description'  => 'Get schools participating in blended learning courses',
+        'type'         => 'read',
+        'ajax'         => true,
+        'capabilities' => 'local/elby_dashboard:viewreports',
+    ],
+    'local_elby_dashboard_get_blended_learning_students' => [
+        'classname'    => 'local_elby_dashboard\external\blended_learning',
+        'methodname'   => 'get_blended_learning_students',
+        'description'  => 'Get paginated student list enrolled in blended learning courses',
+        'type'         => 'read',
+        'ajax'         => true,
+        'capabilities' => 'local/elby_dashboard:viewreports',
+    ],
+    'local_elby_dashboard_get_blended_learning_teachers' => [
+        'classname'    => 'local_elby_dashboard\external\blended_learning',
+        'methodname'   => 'get_blended_learning_teachers',
+        'description'  => 'Get paginated teacher list assigned to blended learning courses',
+        'type'         => 'read',
+        'ajax'         => true,
+        'capabilities' => 'local/elby_dashboard:viewreports',
+    ],
+
     // SDMS self-registration APIs (no login required).
     'local_elby_dashboard_lookup_for_signup' => [
         'classname'     => 'local_elby_dashboard\external\signup',
@@ -344,6 +378,10 @@ $services = [
             'local_elby_dashboard_get_enrollment_logs',
             'local_elby_dashboard_lookup_for_signup',
             'local_elby_dashboard_register_sdms_user',
+            'local_elby_dashboard_get_blended_learning_metrics',
+            'local_elby_dashboard_get_blended_learning_schools',
+            'local_elby_dashboard_get_blended_learning_students',
+            'local_elby_dashboard_get_blended_learning_teachers',
         ],
         'restrictedusers' => 0,
         'enabled'         => 1,

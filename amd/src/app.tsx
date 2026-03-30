@@ -33,6 +33,7 @@ import StudentList from './components/StudentList';
 import TrafficReport from './components/TrafficReport';
 import AccessLog from './components/AccessLog';
 import AdminPanel from './components/AdminPanel';
+import BlendedLearning from './components/BlendedLearning';
 import type { UserData, StatsData, PageId, SidenavConfig, ThemeConfig, CoursesReportData } from './types';
 
 interface AppProps {
@@ -62,6 +63,7 @@ function Header({ user, activePage, themeConfig, onMenuClick }: {
         teachers: 'Teacher List',
         traffic: 'Platform Traffic',
         accesslog: 'Access Log',
+        blended_learning: 'Blended Learning',
         admin: 'Admin Panel',
     };
     const pageTitle = pageTitles[activePage] || 'Dashboard';
@@ -127,7 +129,7 @@ export default function App({ user, stats, activePage, sidenavConfig, themeConfi
     const closeSidebar = () => setSidebarOpen(false);
 
     return (
-        <div className="flex h-screen bg-gray-50">
+        <div className="flex h-[calc(100vh-120px)] bg-gray-50">
             <Sidebar
                 activePage={activePage}
                 sidenavConfig={sidenavConfig}
@@ -149,6 +151,7 @@ export default function App({ user, stats, activePage, sidenavConfig, themeConfi
                     {activePage === 'teachers' && <StudentList userType="teacher" user={user} initialSchoolCode={schoolCode} />}
                     {activePage === 'traffic' && <TrafficReport />}
                     {activePage === 'accesslog' && <AccessLog />}
+                    {activePage === 'blended_learning' && <BlendedLearning />}
                     {activePage === 'admin' && <AdminPanel />}
                 </main>
             </div>

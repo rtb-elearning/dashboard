@@ -103,6 +103,7 @@ $themeconfig = [
         'message' => (bool) (get_config('local_elby_dashboard', 'showmenu_message') ?? 1),
         'completion' => (bool) (get_config('local_elby_dashboard', 'showmenu_completion') ?? 1),
         'settings' => (bool) (get_config('local_elby_dashboard', 'showmenu_settings') ?? 1),
+        'blended_learning' => has_capability('local/elby_dashboard:viewreports', $context) && (bool) (get_config('local_elby_dashboard', 'showmenu_blended_learning') ?? 1),
         'schools' => has_capability('local/elby_dashboard:viewreports', $context),
         'students' => has_capability('local/elby_dashboard:viewreports', $context),
         'teachers' => has_capability('local/elby_dashboard:viewreports', $context),

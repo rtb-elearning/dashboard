@@ -362,6 +362,19 @@ $string['filter_all'] = 'All';
 $string['filter_enrolled'] = 'Enrolled';
 $string['filter_skipped'] = 'Skipped';
 
+// =============================================
+// BLENDED LEARNING
+// =============================================
+$string['blended_learning_report'] = 'Blended Learning';
+$string['blendedlearningheading'] = 'Blended Learning Settings';
+$string['blendedlearningheading_desc'] = 'Configure the blended learning report.';
+$string['blended_learning_category'] = 'Blended Learning Parent Category';
+$string['blended_learning_category_desc'] = 'Select the parent course category. All courses under this category (including subcategories) will be included in blended learning metrics.';
+$string['showmenu_blended_learning'] = 'Show Blended Learning';
+$string['showmenu_blended_learning_desc'] = 'Show or hide the Blended Learning menu item in the sidebar.';
+$string['blended_learning_category_not_set'] = 'Blended Learning parent category has not been configured. Please set it in the plugin settings.';
+$string['blended_learning_no_courses'] = 'No courses found under the configured category.';
+
 // General strings.
 $string['loading'] = 'Loading...';
 $string['error'] = 'An error occurred';

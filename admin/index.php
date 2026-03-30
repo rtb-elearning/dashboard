@@ -179,6 +179,7 @@ $admindata = [
 ];
 
 // Add capability-based menu visibility.
+$themeconfig['menuVisibility']['blended_learning'] = (bool) (get_config('local_elby_dashboard', 'showmenu_blended_learning') ?? 1);
 $themeconfig['menuVisibility']['schools'] = true;
 $themeconfig['menuVisibility']['students'] = true;
 $themeconfig['menuVisibility']['teachers'] = true;

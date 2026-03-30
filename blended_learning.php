@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Elby Dashboard teacher list page.
+ * Elby Dashboard blended learning report page.
  *
  * @package    local_elby_dashboard
  * @copyright  2025 Rwanda TVET Board
@@ -24,9 +24,6 @@
 
 require_once('../../config.php');
 require_once($CFG->dirroot . '/local/elby_dashboard/lib.php');
-
-// Get optional parameters.
-$schoolcode = optional_param('school_code', '', PARAM_TEXT);
 
 // Require login.
 require_login();
@@ -38,20 +35,16 @@ $PAGE->set_context($context);
 // Check capability.
 require_capability('local/elby_dashboard:viewreports', $context);
 
-$urlparams = [];
-if (!empty($schoolcode)) {
-    $urlparams['school_code'] = $schoolcode;
-}
-$PAGE->set_url(new moodle_url('/local/elby_dashboard/teachers.php', $urlparams));
+$PAGE->set_url(new moodle_url('/local/elby_dashboard/blended_learning.php'));
 $PAGE->set_pagelayout('standard');
 $PAGE->set_title(get_string('page_title', 'local_elby_dashboard') . ' - ' .
-    get_string('teacher_list', 'local_elby_dashboard'));
+    get_string('blended_learning_report', 'local_elby_dashboard'));
 $PAGE->set_heading(get_string('page_heading', 'local_elby_dashboard'));
 
 // Add body classes.
 $PAGE->add_body_class('local-elby-dashboard-plugin');
 $PAGE->add_body_class('local-elby-dashboard-page');
-$PAGE->add_body_class('local-elby-dashboard-teachers');
+$PAGE->add_body_class('local-elby-dashboard-blended-learning');
 
 // Load CSS and JS.
 $PAGE->requires->css('/local/elby_dashboard/styles.css');
@@ -59,7 +52,7 @@ $PAGE->requires->js_call_amd('local_elby_dashboard/dashboard', 'init');
 
 // Breadcrumbs.
 $PAGE->navbar->add(get_string('pluginname', 'local_elby_dashboard'), new moodle_url('/local/elby_dashboard/index.php'));
-$PAGE->navbar->add(get_string('teacher_list', 'local_elby_dashboard'));
+$PAGE->navbar->add(get_string('blended_learning_report', 'local_elby_dashboard'));
 
 // Get sidenav configuration.
 $sidenavtitle = get_config('local_elby_dashboard', 'sidenavtitle') ?: 'Dashboard';
@@ -128,7 +121,6 @@ $userdata = [
     'avatar' => $OUTPUT->get_generated_image_for_id($USER->id),
     'roles' => $userroles,
     'isAdmin' => $isadmin,
-    'canManage' => has_capability('local/elby_dashboard:manage', $context),
 ];
 
 // Minimal stats for non-home pages.
@@ -148,8 +140,7 @@ $templatecontext = [
     'stats_data_json' => json_encode($statsdata, JSON_HEX_QUOT | JSON_HEX_APOS),
     'sidenav_config_json' => json_encode($sidenavconfig, JSON_HEX_QUOT | JSON_HEX_APOS),
     'theme_config_json' => json_encode($themeconfig, JSON_HEX_QUOT | JSON_HEX_APOS),
-    'active_page' => 'teachers',
-    'school_code' => $schoolcode,
+    'active_page' => 'blended_learning',
 ];
 
 // Output the page.

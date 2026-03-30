@@ -93,7 +93,68 @@ export interface ThemeConfig {
     menuVisibility: Record<string, boolean>;
 }
 
-export type PageId = 'home' | 'completion' | 'courses' | 'schools' | 'school_detail' | 'students' | 'teachers' | 'traffic' | 'accesslog' | 'admin';
+export type PageId = 'home' | 'completion' | 'courses' | 'schools' | 'school_detail' | 'students' | 'teachers' | 'traffic' | 'accesslog' | 'admin' | 'blended_learning';
+
+// Blended Learning types
+export interface BlendedLearningMetrics {
+    category_id: number;
+    category_name: string;
+    total_courses: number;
+    total_enrolled_students: number;
+    total_teachers: number;
+    active_student_rate: number;
+    active_students: number;
+    activity_participation_rate: number;
+    students_with_activity: number;
+    avg_login_frequency: number;
+    avg_learning_time_minutes: number;
+    digital_assessment_performance: number;
+    assignment_submission_rate: number;
+    students_submitted_assignments: number;
+    quiz_participation_rate: number;
+    students_attempted_quizzes: number;
+    course_completion_rate: number;
+    students_completed_courses: number;
+    forum_interaction_rate: number;
+    students_with_forum_posts: number;
+    teacher_lms_usage_rate: number;
+    teachers_uploading_content: number;
+    teachers_with_active_courses: number;
+    teacher_lms_activity_rate: number;
+    teachers_with_activity: number;
+    digital_course_availability: number;
+    courses_with_materials: number;
+    period_start: number;
+    period_end: number;
+}
+
+export interface BlendedLearningSchool {
+    school_code: string;
+    school_name: string;
+    student_count: number;
+    teacher_count: number;
+    avg_completion_rate: number;
+    active_student_rate: number;
+}
+
+export interface BlendedLearningStudent {
+    userid: number;
+    fullname: string;
+    school_name: string;
+    school_code: string;
+    courses_enrolled: number;
+    completion_pct: number;
+    last_access: number;
+}
+
+export interface BlendedLearningTeacher {
+    userid: number;
+    fullname: string;
+    school_name: string;
+    school_code: string;
+    courses_teaching: number;
+    activity_rate: number;
+}
 
 // Metrics types
 export interface SchoolMetrics {
