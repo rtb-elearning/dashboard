@@ -505,15 +505,21 @@ class blended_learning extends external_api {
         [$insql, $inparams] = self::get_course_in_sql($courseids, 'sc');
 
         // Get schools with student/teacher counts enrolled in blended courses.
+        // Uses Moodle role assignments as source of truth, LEFT JOINs SDMS for school identification.
         $sqlparams = $inparams;
-        $sql = "SELECT sch.school_code, sch.school_name,
-                       SUM(CASE WHEN su.user_type = 'student' THEN 1 ELSE 0 END) AS student_count,
-                       SUM(CASE WHEN su.user_type = 'staff' THEN 1 ELSE 0 END) AS teacher_count
-                  FROM {elby_sdms_users} su
-                  JOIN {elby_schools} sch ON sch.id = su.schoolid
-                  JOIN {user_enrolments} ue ON ue.userid = su.userid AND ue.status = 0
+        $sql = "SELECT COALESCE(sch.school_code, '') AS school_code,
+                       COALESCE(sch.school_name, 'Unlinked') AS school_name,
+                       SUM(CASE WHEN r.shortname = 'student' THEN 1 ELSE 0 END) AS student_count,
+                       SUM(CASE WHEN r.shortname IN ('editingteacher', 'teacher') THEN 1 ELSE 0 END) AS teacher_count
+                  FROM {user_enrolments} ue
                   JOIN {enrol} e ON e.id = ue.enrolid
+                  JOIN {context} ctx ON ctx.contextlevel = 50 AND ctx.instanceid = e.courseid
+                  JOIN {role_assignments} ra ON ra.contextid = ctx.id AND ra.userid = ue.userid
+                  JOIN {role} r ON r.id = ra.roleid AND r.shortname IN ('student', 'editingteacher', 'teacher')
+                  LEFT JOIN {elby_sdms_users} su ON su.userid = ue.userid
+                  LEFT JOIN {elby_schools} sch ON sch.id = su.schoolid
                  WHERE e.courseid {$insql}
+                   AND ue.status = 0
               GROUP BY sch.school_code, sch.school_name
               ORDER BY student_count DESC";
 
@@ -525,37 +531,60 @@ class blended_learning extends external_api {
             $schoolcode = $row->school_code;
             $studentcount = (int) $row->student_count;
 
+            // Build school filter condition: match by school_code, or match unlinked users (no SDMS link).
+            $isunlinked = ($schoolcode === '');
+
             // Completion rate for this school's students.
             [$insql2, $inparams2] = self::get_course_in_sql($courseids, 'scc');
-            $sqlparams2 = array_merge($inparams2, ['scode' => $schoolcode]);
+            if ($isunlinked) {
+                $schoolwhere2 = "AND su2.userid IS NULL";
+                $sqlparams2 = $inparams2;
+            } else {
+                $schoolwhere2 = "AND sch2.school_code = :scode";
+                $sqlparams2 = array_merge($inparams2, ['scode' => $schoolcode]);
+            }
             $completed = (int) $DB->count_records_sql(
                 "SELECT COUNT(DISTINCT cc.userid)
                    FROM {course_completions} cc
-                   JOIN {elby_sdms_users} su ON su.userid = cc.userid
-                   JOIN {elby_schools} sch ON sch.id = su.schoolid
+                   JOIN {enrol} e2 ON e2.courseid = cc.course
+                   JOIN {user_enrolments} ue2 ON ue2.enrolid = e2.id AND ue2.userid = cc.userid AND ue2.status = 0
+                   JOIN {context} ctx2 ON ctx2.contextlevel = 50 AND ctx2.instanceid = e2.courseid
+                   JOIN {role_assignments} ra2 ON ra2.contextid = ctx2.id AND ra2.userid = cc.userid
+                   JOIN {role} r2 ON r2.id = ra2.roleid AND r2.shortname = 'student'
+                   LEFT JOIN {elby_sdms_users} su2 ON su2.userid = cc.userid
+                   LEFT JOIN {elby_schools} sch2 ON sch2.id = su2.schoolid
                   WHERE cc.course {$insql2}
                     AND cc.timecompleted IS NOT NULL
-                    AND sch.school_code = :scode",
+                    {$schoolwhere2}",
                 $sqlparams2
             );
             $avgcompletionrate = $studentcount > 0 ? round($completed / $studentcount * 100, 1) : 0;
 
             // Active rate for this school's students.
             [$insql3, $inparams3] = self::get_course_in_sql($courseids, 'sac');
-            $sqlparams3 = array_merge($inparams3, [
-                'scode2' => $schoolcode,
-                'sstart' => $starttime,
-                'send' => $endtime,
-            ]);
+            if ($isunlinked) {
+                $schoolwhere3 = "AND su3.userid IS NULL";
+                $sqlparams3 = array_merge($inparams3, ['sstart' => $starttime, 'send' => $endtime]);
+            } else {
+                $schoolwhere3 = "AND sch3.school_code = :scode2";
+                $sqlparams3 = array_merge($inparams3, [
+                    'scode2' => $schoolcode, 'sstart' => $starttime, 'send' => $endtime,
+                ]);
+            }
             $active = (int) $DB->count_records_sql(
                 "SELECT COUNT(DISTINCT log.userid)
                    FROM {logstore_standard_log} log
-                   JOIN {elby_sdms_users} su ON su.userid = log.userid
-                   JOIN {elby_schools} sch ON sch.id = su.schoolid
+                   JOIN {enrol} e3 ON e3.courseid = log.courseid
+                   JOIN {user_enrolments} ue3 ON ue3.enrolid = e3.id AND ue3.userid = log.userid AND ue3.status = 0
+                   JOIN {context} ctx3 ON ctx3.contextlevel = 50 AND ctx3.instanceid = e3.courseid
+                   JOIN {role_assignments} ra3 ON ra3.contextid = ctx3.id AND ra3.userid = log.userid
+                   JOIN {role} r3 ON r3.id = ra3.roleid AND r3.shortname = 'student'
+                   LEFT JOIN {elby_sdms_users} su3 ON su3.userid = log.userid
+                   LEFT JOIN {elby_schools} sch3 ON sch3.id = su3.schoolid
                   WHERE log.courseid {$insql3}
                     AND log.timecreated >= :sstart AND log.timecreated <= :send
                     AND log.userid > 0
-                    AND sch.school_code = :scode2",
+                    {$schoolwhere3}",
                 $sqlparams3
             );
             $activestudentrate = $studentcount > 0 ? round($active / $studentcount * 100, 1) : 0;
