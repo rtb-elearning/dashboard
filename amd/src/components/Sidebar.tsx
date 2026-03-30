@@ -23,6 +23,20 @@
 
 import type { PageId, SidenavConfig, ThemeConfig } from '../types';
 
+// @ts-ignore — Moodle global
+declare const M: { cfg: { wwwroot: string } };
+
+// Derive the base path from Moodle's wwwroot (e.g., "/new" from "https://example.com/new").
+function getBasePath(): string {
+    try {
+        const url = new URL(M.cfg.wwwroot);
+        // Remove trailing slash if present.
+        return url.pathname.replace(/\/$/, '');
+    } catch {
+        return '';
+    }
+}
+
 interface SidebarProps {
     activePage: PageId;
     sidenavConfig: SidenavConfig;
@@ -31,16 +45,16 @@ interface SidebarProps {
     onClose: () => void;
 }
 
-// Menu items
+// Menu items (paths are relative to Moodle root, basePath is prepended at render time).
 const menuItems = [
-    { id: 'home', name: 'Dashboard', icon: 'dashboard', url: '/local/elby_dashboard/index.php' },
-    { id: 'schools', name: 'Schools', icon: 'pedagogy', url: '/local/elby_dashboard/schools.php', capability: 'viewreports' },
-    { id: 'students', name: 'Students', icon: 'communication', url: '/local/elby_dashboard/students.php', capability: 'viewreports' },
-    { id: 'teachers', name: 'Teachers', icon: 'presence', url: '/local/elby_dashboard/teachers.php', capability: 'viewreports' },
-    { id: 'traffic', name: 'Traffic', icon: 'event', url: '/local/elby_dashboard/traffic.php', capability: 'viewreports' },
-    { id: 'accesslog', name: 'Access Log', icon: 'courses', url: '/local/elby_dashboard/accesslog.php', capability: 'viewreports' },
-    { id: 'blended_learning', name: 'Blended Learning', icon: 'blended', url: '/local/elby_dashboard/blended_learning.php', capability: 'viewreports' },
-    { id: 'admin', name: 'Admin Panel', icon: 'settings', url: '/local/elby_dashboard/admin/index.php', capability: 'admin' },
+    { id: 'home', name: 'Dashboard', icon: 'dashboard', path: '/local/elby_dashboard/index.php' },
+    { id: 'schools', name: 'Schools', icon: 'pedagogy', path: '/local/elby_dashboard/schools.php', capability: 'viewreports' },
+    { id: 'students', name: 'Students', icon: 'communication', path: '/local/elby_dashboard/students.php', capability: 'viewreports' },
+    { id: 'teachers', name: 'Teachers', icon: 'presence', path: '/local/elby_dashboard/teachers.php', capability: 'viewreports' },
+    { id: 'traffic', name: 'Traffic', icon: 'event', path: '/local/elby_dashboard/traffic.php', capability: 'viewreports' },
+    { id: 'accesslog', name: 'Access Log', icon: 'courses', path: '/local/elby_dashboard/accesslog.php', capability: 'viewreports' },
+    { id: 'blended_learning', name: 'Blended Learning', icon: 'blended', path: '/local/elby_dashboard/blended_learning.php', capability: 'viewreports' },
+    { id: 'admin', name: 'Admin Panel', icon: 'settings', path: '/local/elby_dashboard/admin/index.php', capability: 'admin' },
 ];
 
 // Icon components
@@ -116,6 +130,8 @@ const DefaultLogoIcon = () => (
 );
 
 export default function Sidebar({ activePage, sidenavConfig, themeConfig, isOpen, onClose }: SidebarProps) {
+    const basePath = getBasePath();
+
     // Filter menu items based on visibility settings
     const visibleMenuItems = menuItems.filter((item) => {
         // Dashboard (home) is always visible
@@ -178,7 +194,7 @@ export default function Sidebar({ activePage, sidenavConfig, themeConfig, isOpen
                             return (
                                 <li key={item.id}>
                                     <a
-                                        href={item.url}
+                                        href={basePath + item.path}
                                         className={`flex items-center px-3 py-2 rounded text-sm transition-colors no-underline ${
                                             isActive
                                                 ? 'text-white'
@@ -205,7 +221,7 @@ export default function Sidebar({ activePage, sidenavConfig, themeConfig, isOpen
                     <ul className="space-y-1 m-0 p-0 list-none">
                         <li>
                             <a
-                                href="/login/logout.php"
+                                href={basePath + '/login/logout.php'}
                                 className="flex items-center px-3 py-2 rounded text-sm text-gray-700 hover:bg-gray-200 no-underline transition-colors"
                             >
                                 <span className="w-5 mr-3 text-gray-500">{icons.logout}</span>

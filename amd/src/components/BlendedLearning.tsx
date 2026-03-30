@@ -187,14 +187,23 @@ function OverviewTab({ metrics }: { metrics: BlendedLearningMetrics }) {
 
 // ─── Schools Tab ───
 
-function SchoolsTab({ schools, loading }: { schools: BlendedLearningSchool[]; loading: boolean }) {
+function SchoolsTab({ schools, loading, searchQuery, schoolFilter }: { schools: BlendedLearningSchool[]; loading: boolean; searchQuery: string; schoolFilter: string }) {
     const [sortKey, setSortKey] = useState<keyof BlendedLearningSchool>('student_count');
     const [sortAsc, setSortAsc] = useState(false);
 
     if (loading) return <LoadingSkeleton />;
     if (schools.length === 0) return <div className="text-center py-12 text-gray-500">No schools found</div>;
 
-    const sorted = [...schools].sort((a, b) => {
+    const filtered = schools.filter((s) => {
+        if (schoolFilter && s.school_code !== schoolFilter) return false;
+        if (searchQuery) {
+            const q = searchQuery.toLowerCase();
+            return s.school_name.toLowerCase().includes(q) || s.school_code.toLowerCase().includes(q);
+        }
+        return true;
+    });
+
+    const sorted = [...filtered].sort((a, b) => {
         const av = a[sortKey], bv = b[sortKey];
         const cmp = typeof av === 'number' ? (av as number) - (bv as number) : String(av).localeCompare(String(bv));
         return sortAsc ? cmp : -cmp;
@@ -217,6 +226,7 @@ function SchoolsTab({ schools, loading }: { schools: BlendedLearningSchool[]; lo
             <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                     <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">#</th>
                         <SortHeader label="School" field="school_name" />
                         <SortHeader label="Students" field="student_count" />
                         <SortHeader label="Teachers" field="teacher_count" />
@@ -225,8 +235,9 @@ function SchoolsTab({ schools, loading }: { schools: BlendedLearningSchool[]; lo
                     </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                    {sorted.map((s) => (
+                    {sorted.map((s, i) => (
                         <tr key={s.school_code} className="hover:bg-gray-50">
+                            <td className="px-4 py-3 text-sm text-gray-500">{i + 1}</td>
                             <td className="px-4 py-3 text-sm font-medium text-gray-900">{s.school_name}</td>
                             <td className="px-4 py-3 text-sm text-gray-600">{s.student_count}</td>
                             <td className="px-4 py-3 text-sm text-gray-600">{s.teacher_count}</td>
@@ -246,7 +257,7 @@ function SchoolsTab({ schools, loading }: { schools: BlendedLearningSchool[]; lo
 
 // ─── Students Tab ───
 
-function StudentsTab({ daysBack, schoolFilter }: { daysBack: DaysBack; schoolFilter: string }) {
+function StudentsTab({ daysBack, schoolFilter, searchQuery }: { daysBack: DaysBack; schoolFilter: string; searchQuery: string }) {
     const [students, setStudents] = useState<BlendedLearningStudent[]>([]);
     const [totalCount, setTotalCount] = useState(0);
     const [page, setPage] = useState(0);
@@ -270,15 +281,25 @@ function StudentsTab({ daysBack, schoolFilter }: { daysBack: DaysBack; schoolFil
 
     if (loading) return <LoadingSkeleton />;
 
+    const filteredStudents = searchQuery
+        ? students.filter((s) => {
+            const q = searchQuery.toLowerCase();
+            return s.fullname.toLowerCase().includes(q) || s.school_name.toLowerCase().includes(q);
+        })
+        : students;
+
     const totalPages = Math.ceil(totalCount / perpage);
 
     return (
         <div>
-            <p className="text-sm text-gray-500 mb-3">{totalCount} students found</p>
+            <p className="text-sm text-gray-500 mb-3">
+                {searchQuery ? `${filteredStudents.length} of ${totalCount}` : totalCount} students found
+            </p>
             <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                         <tr>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-12">#</th>
                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">School</th>
                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Courses</th>
@@ -287,8 +308,9 @@ function StudentsTab({ daysBack, schoolFilter }: { daysBack: DaysBack; schoolFil
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                        {students.map((s) => (
+                        {filteredStudents.map((s, i) => (
                             <tr key={s.userid} className="hover:bg-gray-50">
+                                <td className="px-4 py-3 text-sm text-gray-500">{page * perpage + i + 1}</td>
                                 <td className="px-4 py-3 text-sm font-medium text-gray-900">{s.fullname}</td>
                                 <td className="px-4 py-3 text-sm text-gray-600">{s.school_name || '-'}</td>
                                 <td className="px-4 py-3 text-sm text-gray-600">{s.courses_enrolled}</td>
@@ -299,7 +321,7 @@ function StudentsTab({ daysBack, schoolFilter }: { daysBack: DaysBack; schoolFil
                             </tr>
                         ))}
                         {students.length === 0 && (
-                            <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-500">No students found</td></tr>
+                            <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-500">No students found</td></tr>
                         )}
                     </tbody>
                 </table>
@@ -323,7 +345,7 @@ function StudentsTab({ daysBack, schoolFilter }: { daysBack: DaysBack; schoolFil
 
 // ─── Teachers Tab ───
 
-function TeachersTab({ daysBack, schoolFilter }: { daysBack: DaysBack; schoolFilter: string }) {
+function TeachersTab({ daysBack, schoolFilter, searchQuery }: { daysBack: DaysBack; schoolFilter: string; searchQuery: string }) {
     const [teachers, setTeachers] = useState<BlendedLearningTeacher[]>([]);
     const [totalCount, setTotalCount] = useState(0);
     const [page, setPage] = useState(0);
@@ -347,15 +369,25 @@ function TeachersTab({ daysBack, schoolFilter }: { daysBack: DaysBack; schoolFil
 
     if (loading) return <LoadingSkeleton />;
 
+    const filteredTeachers = searchQuery
+        ? teachers.filter((t) => {
+            const q = searchQuery.toLowerCase();
+            return t.fullname.toLowerCase().includes(q) || t.school_name.toLowerCase().includes(q);
+        })
+        : teachers;
+
     const totalPages = Math.ceil(totalCount / perpage);
 
     return (
         <div>
-            <p className="text-sm text-gray-500 mb-3">{totalCount} teachers found</p>
+            <p className="text-sm text-gray-500 mb-3">
+                {searchQuery ? `${filteredTeachers.length} of ${totalCount}` : totalCount} teachers found
+            </p>
             <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                         <tr>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-12">#</th>
                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">School</th>
                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Courses</th>
@@ -363,8 +395,9 @@ function TeachersTab({ daysBack, schoolFilter }: { daysBack: DaysBack; schoolFil
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                        {teachers.map((t) => (
+                        {filteredTeachers.map((t, i) => (
                             <tr key={t.userid} className="hover:bg-gray-50">
+                                <td className="px-4 py-3 text-sm text-gray-500">{page * perpage + i + 1}</td>
                                 <td className="px-4 py-3 text-sm font-medium text-gray-900">{t.fullname}</td>
                                 <td className="px-4 py-3 text-sm text-gray-600">{t.school_name || '-'}</td>
                                 <td className="px-4 py-3 text-sm text-gray-600">{t.courses_teaching}</td>
@@ -374,7 +407,7 @@ function TeachersTab({ daysBack, schoolFilter }: { daysBack: DaysBack; schoolFil
                             </tr>
                         ))}
                         {teachers.length === 0 && (
-                            <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-500">No teachers found</td></tr>
+                            <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-500">No teachers found</td></tr>
                         )}
                     </tbody>
                 </table>
@@ -407,6 +440,7 @@ export default function BlendedLearning() {
     const [schoolsLoading, setSchoolsLoading] = useState(false);
     const [error, setError] = useState('');
     const [schoolFilter, setSchoolFilter] = useState('');
+    const [searchQuery, setSearchQuery] = useState('');
 
     // Fetch metrics on mount and when period changes.
     useEffect(() => {
@@ -460,37 +494,79 @@ export default function BlendedLearning() {
 
     return (
         <div className="p-4 sm:p-6 pb-16 space-y-6">
-            {/* Toolbar: Period selector + School filter */}
-            <div className="flex flex-wrap items-center justify-between gap-4">
-                <div className="flex gap-2">
-                    {periods.map((p) => (
-                        <button
-                            key={p.value}
-                            onClick={() => setDaysBack(p.value)}
-                            className={`px-3 py-1.5 text-sm rounded-md border transition-colors ${
-                                daysBack === p.value
-                                    ? 'bg-blue-600 text-white border-blue-600'
-                                    : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
-                            }`}
-                        >
-                            {p.label}
-                        </button>
-                    ))}
-                </div>
+            {/* Toolbar */}
+            <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-3">
+                <div className="flex flex-wrap items-center gap-3">
+                    {/* Period selector */}
+                    <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Period</span>
+                        <div className="flex rounded-lg border border-gray-200 overflow-hidden">
+                            {periods.map((p) => (
+                                <button
+                                    key={p.value}
+                                    onClick={() => setDaysBack(p.value)}
+                                    className={`px-4 py-2 text-sm font-medium transition-colors border-r border-gray-200 last:border-r-0 ${
+                                        daysBack === p.value
+                                            ? 'bg-blue-600 text-white'
+                                            : 'bg-white text-gray-600 hover:bg-gray-50'
+                                    }`}
+                                >
+                                    {p.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
 
-                {/* School filter (shown on students/teachers tabs) */}
-                {(activeTab === 'students' || activeTab === 'teachers') && schools.length > 0 && (
-                    <select
-                        value={schoolFilter}
-                        onChange={(e) => setSchoolFilter((e.target as HTMLSelectElement).value)}
-                        className="px-3 py-1.5 text-sm border border-gray-300 rounded-md bg-white"
-                    >
-                        <option value="">All Schools</option>
-                        {schools.map((s) => (
-                            <option key={s.school_code} value={s.school_code}>{s.school_name}</option>
-                        ))}
-                    </select>
-                )}
+                    {/* School filter */}
+                    {activeTab !== 'overview' && schools.length > 0 && (
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">School</span>
+                            <div className="relative">
+                                <select
+                                    value={schoolFilter}
+                                    onChange={(e) => setSchoolFilter((e.target as HTMLSelectElement).value)}
+                                    className="appearance-none pl-4 pr-8 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-700 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer"
+                                >
+                                    <option value="">All Schools</option>
+                                    {schools.map((s) => (
+                                        <option key={s.school_code} value={s.school_code}>{s.school_name}</option>
+                                    ))}
+                                </select>
+                                <svg className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
+                                </svg>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Search input */}
+                    {activeTab !== 'overview' && (
+                        <div className="flex items-center gap-2 ml-auto">
+                            <div className="relative">
+                                <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clipRule="evenodd" />
+                                </svg>
+                                <input
+                                    type="text"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery((e.target as HTMLInputElement).value)}
+                                    placeholder={`Search ${activeTab}...`}
+                                    className="pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-700 placeholder-gray-400 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-56"
+                                />
+                                {searchQuery && (
+                                    <button
+                                        onClick={() => setSearchQuery('')}
+                                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                    >
+                                        <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+                                            <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+                                        </svg>
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* Tabs */}
@@ -518,9 +594,9 @@ export default function BlendedLearning() {
             ) : (
                 <>
                     {activeTab === 'overview' && metrics && <OverviewTab metrics={metrics} />}
-                    {activeTab === 'schools' && <SchoolsTab schools={schools} loading={schoolsLoading} />}
-                    {activeTab === 'students' && <StudentsTab daysBack={daysBack} schoolFilter={schoolFilter} />}
-                    {activeTab === 'teachers' && <TeachersTab daysBack={daysBack} schoolFilter={schoolFilter} />}
+                    {activeTab === 'schools' && <SchoolsTab schools={schools} loading={schoolsLoading} searchQuery={searchQuery} schoolFilter={schoolFilter} />}
+                    {activeTab === 'students' && <StudentsTab daysBack={daysBack} schoolFilter={schoolFilter} searchQuery={searchQuery} />}
+                    {activeTab === 'teachers' && <TeachersTab daysBack={daysBack} schoolFilter={schoolFilter} searchQuery={searchQuery} />}
                 </>
             )}
         </div>
