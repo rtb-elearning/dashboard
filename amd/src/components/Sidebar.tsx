@@ -48,6 +48,7 @@ interface SidebarProps {
 // Menu items (paths are relative to Moodle root, basePath is prepended at render time).
 const menuItems = [
     { id: 'home', name: 'Dashboard', icon: 'dashboard', path: '/local/elby_dashboard/index.php' },
+    { id: 'courses', name: 'Courses', icon: 'courses', path: '/local/elby_dashboard/courses.php', capability: 'viewreports' },
     { id: 'schools', name: 'Schools', icon: 'pedagogy', path: '/local/elby_dashboard/schools.php', capability: 'viewreports' },
     { id: 'students', name: 'Students', icon: 'communication', path: '/local/elby_dashboard/students.php', capability: 'viewreports' },
     { id: 'teachers', name: 'Teachers', icon: 'presence', path: '/local/elby_dashboard/teachers.php', capability: 'viewreports' },
